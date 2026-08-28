@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Amministrativa 3.0 — Percorso guidato</title>
+<script src="config.js"></script>
+<script src="assets/workflow.js"></script>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0d1117;color:#e6edf3}
+button,input,textarea,select{font:inherit}.app{display:grid;grid-template-columns:250px minmax(0,1fr) 350px;height:100vh}
+aside{background:#111722;border-right:1px solid #263041;padding:18px 13px;display:flex;flex-direction:column;gap:14px}.brand{padding:7px 9px 17px;border-bottom:1px solid #263041}.brand h1{font-size:18px;margin:0 0 4px}.brand p{font-size:11px;color:#7d8999;margin:0}
+.nav{display:flex;flex-direction:column;gap:7px}.nav button{width:100%;text-align:left;border:1px solid #2a3443;background:#171e29;color:#cbd5e1;padding:11px 12px;border-radius:10px;cursor:pointer;font-weight:600}.nav button:hover,.nav button.active{border-color:#3b82f6;background:#16243b;color:#8ec5ff}
+main{display:grid;grid-template-rows:auto 1fr;min-width:0}.topbar{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid #263041;background:#10151e}.title{font-weight:700}.status{font-size:10px;background:#14331f;color:#6ee7a0;border:1px solid #245c37;border-radius:999px;padding:5px 8px}
+.workspace{position:relative;min-height:0}.home{height:100%;overflow:auto;padding:28px}.hero{max-width:900px;margin:0 auto}.eyebrow{color:#60a5fa;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase}.hero h2{font-size:31px;margin:6px 0 8px}.hero>p{color:#9aa6b6;line-height:1.6;margin-top:0}
+.intake{margin-top:22px;padding:22px;background:linear-gradient(145deg,#151b25,#121824);border:1px solid #33445b;border-radius:18px;box-shadow:0 18px 40px rgba(0,0,0,.18)}.intake h3{margin:0 0 6px}.intake .help{font-size:12px;color:#8d9aae;line-height:1.5}.upload{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end;margin-top:16px}.filebox{background:#0f141d;border:1px dashed #40516a;border-radius:12px;padding:12px}.filebox label{display:block;font-size:11px;color:#9aa6b6;margin-bottom:7px}.filebox input{width:100%;color:#cbd5e1}
+.primary{border:1px solid #4c6fff;background:#3156d9;color:white;border-radius:11px;padding:12px 16px;cursor:pointer;font-weight:750}.primary:hover{background:#3d63ea}.primary:disabled{opacity:.55;cursor:wait}.secondary{border:1px solid #334155;background:#182130;color:#dbeafe;border-radius:9px;padding:9px 11px;cursor:pointer;font-weight:650}.secondary:hover{border-color:#4b82c3}
+.result{display:none;margin-top:18px;border-top:1px solid #2a3443;padding-top:18px}.result.show{display:block}.route-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.route-badge{background:#12335b;border:1px solid #265d97;color:#9dccff;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:750}.confidence{color:#9aa6b6;font-size:11px}.reason{font-size:13px;color:#cbd5e1;line-height:1.5;margin:10px 0}.summary{background:#0f141d;border:1px solid #293344;border-radius:12px;padding:13px;line-height:1.55;font-size:13px}.result-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.result-box{background:#121823;border:1px solid #263244;border-radius:11px;padding:12px}.result-box h4{font-size:11px;text-transform:uppercase;color:#8192a8;margin:0 0 7px}.result-box ul{margin:0;padding-left:18px;font-size:12px;color:#c4cedb;line-height:1.5}.route-confirm{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;margin-top:14px}.route-confirm select{background:#0f141d;color:#e6edf3;border:1px solid #334155;border-radius:10px;padding:10px}.warning{background:#321b16;border:1px solid #7c3b2c;color:#fdba9a;border-radius:10px;padding:10px;font-size:12px;margin-top:10px}
+.manual{margin-top:24px}.manual h3{font-size:14px;color:#b7c3d2}.cards{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:12px}.card{background:#151b25;border:1px solid #293344;border-radius:14px;padding:15px;cursor:pointer}.card:hover{border-color:#4b82c3;transform:translateY(-1px)}.card h4{margin:5px 0}.card p{font-size:11px;color:#8996a8;line-height:1.45;margin:0}.icon{font-size:22px}iframe{width:100%;height:100%;border:0;display:none;background:#0f131a}
+.right{background:#10151e;border-left:1px solid #263041;padding:14px;overflow:auto}.panel{background:#151b25;border:1px solid #293344;border-radius:13px;padding:13px;margin-bottom:12px}.panel h3{font-size:12px;text-transform:uppercase;letter-spacing:.7px;color:#8aa0bb;margin:0 0 10px}.step{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #222b38;font-size:12px}.step:last-child{border-bottom:0}.dot{width:9px;height:9px;border-radius:50%;background:#475569}.dot.on{background:#22c55e}.field{margin:8px 0}.field label{display:block;font-size:10px;color:#7d8999;margin-bottom:4px;text-transform:uppercase}.field input,.field textarea{width:100%;background:#0f141d;border:1px solid #2b3646;color:#e6edf3;border-radius:8px;padding:8px;font-size:12px}.field textarea{min-height:76px;resize:vertical}.btn{width:100%;border:1px solid #334155;background:#182130;color:#dbeafe;border-radius:9px;padding:9px 10px;cursor:pointer;font-size:12px;font-weight:650;margin-top:6px}.btn.ai{border-color:#4c1d95;background:#211238;color:#d8c8ff}.btn.warn{border-color:#7c2d12;background:#271409;color:#fdba74}.btn.danger{border-color:#7f1d1d;background:#2b1114;color:#fca5a5}.finding{font-size:11px;padding:7px 8px;border-radius:8px;background:#2b1a0c;color:#fdba74;border:1px solid #7c2d12;margin:6px 0}.ok{font-size:11px;padding:7px 8px;border-radius:8px;background:#10291a;color:#86efac;border:1px solid #166534;margin:6px 0}.small{font-size:10px;color:#7f8b9b;line-height:1.45}.writer-result{display:none;margin-top:10px}.writer-result.show{display:block}.writer-summary{font-size:11px;line-height:1.5;color:#cbd5e1;background:#101720;padding:9px;border-radius:8px}.mini-title{font-size:10px;text-transform:uppercase;color:#8aa0bb;margin:10px 0 4px}.mini-list{margin:0;padding-left:16px;color:#cbd5e1;font-size:11px;line-height:1.45}.next-question{font-size:11px;color:#a7f3d0;margin-top:8px}.busyline{display:none;color:#9dccff;font-size:12px;margin-top:10px}.busyline.show{display:block}
+@media(max-width:1150px){.app{grid-template-columns:220px 1fr}.right{position:fixed;right:12px;bottom:12px;top:62px;width:330px;z-index:5;box-shadow:0 15px 45px #000;display:none}.right.open{display:block}.topbar{padding-right:88px}.mobile-panel{display:block!important}}
+@media(min-width:1151px){.mobile-panel{display:none!important}}@media(max-width:760px){.app{grid-template-columns:1fr}.app aside{display:none}.home{padding:17px}.upload,.route-confirm,.result-grid{grid-template-columns:1fr}.cards{grid-template-columns:1fr}.right{left:10px;width:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <div class="brand"><h1>Amministrativa 3.0</h1><p>Percorso guidato · U.O. San Lorenzo</p></div>
+  <div class="nav">
+    <button class="active" data-home>⌂ Nuova pratica</button>
+    <button data-module="modules/pareri-edili.html" data-key="edili" data-title="Pareri Edili">🏗️ Pareri Edili</button>
+    <button data-module="modules/riscontro-esposto.html" data-key="esposto" data-title="Riscontro Esposto">📄 Riscontro Esposto</button>
+    <button data-module="modules/sorvegliabilita.html" data-key="sorvegliabilita" data-title="Sorvegliabilità">🔎 Sorvegliabilità</button>
+    <button data-module="modules/strutture-ricettive.html" data-key="ricettive" data-title="Strutture Ricettive">🏠 Strutture Ricettive</button>
+  </div>
+  <div class="small" style="margin-top:auto">Il documento viene analizzato dalla funzione protetta Supabase. La chiave OpenAI non è presente nel sito.</div>
+</aside>
+
+<main>
+  <div class="topbar"><div class="title" id="pageTitle">Nuova pratica</div><button class="secondary mobile-panel" id="mobilePanel" type="button">Workflow</button><div class="status" id="statusBadge">NUOVA PRATICA</div></div>
+  <div class="workspace">
+    <section class="home" id="home">
+      <div class="hero">
+        <div class="eyebrow">Un documento, un percorso</div>
+        <h2>Carica la pratica. Al resto ti accompagna il workflow.</h2>
+        <p>L’Estrattore identifica il procedimento, riassume gli atti e recupera i dati utili. Tu confermi il percorso prima che venga aperto il modulo operativo.</p>
+
+        <div class="intake">
+          <h3>1. Documento iniziale</h3>
+          <div class="help">PDF massimo 8 MB. L’analisi non decide l’esito amministrativo e non sostituisce la verifica dell’operatore.</div>
+          <div class="upload">
+            <div class="filebox"><label for="wfPdf">Seleziona il PDF della pratica</label><input id="wfPdf" type="file" accept="application/pdf,.pdf"><div class="small" id="wfPdfInfo">Nessun PDF selezionato</div></div>
+            <button class="primary" id="analyzeButton" type="button">Analizza e instrada</button>
+          </div>
+          <div class="busyline" id="analysisBusy">L’Estrattore sta leggendo e classificando il documento…</div>
+          <div class="result" id="intakeResult">
+            <div class="route-head"><span class="route-badge" id="routeBadge"></span><span class="confidence" id="routeConfidence"></span></div>
+            <div class="reason" id="routeReason"></div>
+            <div class="summary" id="sourceSummary"></div>
+            <div class="warning" id="routeWarning" hidden></div>
+            <div class="result-grid">
+              <div class="result-box"><h4>Fatti trovati</h4><ul id="keyFacts"></ul></div>
+              <div class="result-box"><h4>Da verificare o completare</h4><ul id="missingInformation"></ul></div>
+            </div>
+            <div class="route-confirm">
+              <select id="routeSelect" aria-label="Percorso della pratica">
+                <option value="edili">Pareri Edili</option><option value="esposto">Riscontro Esposto</option><option value="sorvegliabilita">Sorvegliabilità</option><option value="ricettive">Strutture Ricettive</option>
+              </select>
+              <button class="primary" id="confirmRoute" type="button">Conferma e apri</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="manual">
+          <h3>Oppure apri manualmente un modulo</h3>
+          <div class="cards">
+            <div class="card" data-module="modules/pareri-edili.html" data-key="edili" data-title="Pareri Edili"><div class="icon">🏗️</div><h4>Pareri Edili</h4><p>Pareri, lavori e trasmissioni collegate.</p></div>
+            <div class="card" data-module="modules/riscontro-esposto.html" data-key="esposto" data-title="Riscontro Esposto"><div class="icon">📄</div><h4>Riscontro Esposto</h4><p>Segnalazione, accertamento e risposta.</p></div>
+            <div class="card" data-module="modules/sorvegliabilita.html" data-key="sorvegliabilita" data-title="Sorvegliabilità"><div class="icon">🔎</div><h4>Sorvegliabilità</h4><p>Richieste SUAP e verifica del locale.</p></div>
+            <div class="card" data-module="modules/strutture-ricettive.html" data-key="ricettive" data-title="Strutture Ricettive"><div class="icon">🏠</div><h4>Strutture Ricettive</h4><p>Controlli e irregolarità delle strutture.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <iframe id="frame" title="Modulo operativo"></iframe>
+  </div>
+</main>
+
+<section class="right" id="rightPanel">
+  <div class="panel">
+    <h3>Percorso della pratica</h3>
+    <div class="step"><span class="dot" id="dotDocument"></span>1. Documento caricato</div>
+    <div class="step"><span class="dot" id="dotExtract"></span>2. Estratto e riassunto</div>
+    <div class="step"><span class="dot" id="dotRoute"></span>3. Percorso confermato</div>
+    <div class="step"><span class="dot" id="dotDraft"></span>4. Testo proposto</div>
+    <div class="step"><span class="dot" id="dotReview"></span>5. Controllo finale</div>
+  </div>
+
+  <div class="panel">
+    <h3>Dati comuni</h3>
+    <div class="field"><label>ID pratica</label><input id="wfId"></div>
+    <div class="field"><label>Oggetto / denominazione</label><input id="wfSubject"></div>
+    <div class="field"><label>Ubicazione</label><input id="wfLocation"></div>
+    <div class="field"><label>Protocollo</label><input id="wfProtocol"></div>
+    <div class="field"><label>Data della pratica (GG.MM.AAAA)</label><input id="wfDate" placeholder="es. 04.03.2026"></div>
+    <button class="btn" id="savePractice" type="button">Salva correzioni</button>
+  </div>
+
+  <div class="panel">
+    <h3>Redattore guidato</h3>
+    <div class="small">Scrivi soltanto ciò che è stato accertato o ciò che vuoi comunicare. Il Redattore userà anche i dati estratti dalla pratica confermata.</div>
+    <div class="field"><label>Indicazioni dell’operatore</label><textarea id="operatorNotes" placeholder="Esempio: dal sopralluogo del … è risultato che …"></textarea></div>
+    <button class="btn ai" id="summarizeButton" type="button">✦ Riassumi e suggerisci</button>
+    <button class="btn ai" id="draftButton" type="button">✦ Prepara testo formale</button>
+    <div class="writer-result" id="writerResult">
+      <div class="mini-title">Sintesi</div><div class="writer-summary" id="writerSummary"></div>
+      <div class="mini-title">Suggerimenti</div><ul class="mini-list" id="writerSuggestions"></ul>
+      <div class="mini-title">Informazioni mancanti</div><ul class="mini-list" id="writerMissing"></ul>
+      <div class="next-question" id="writerQuestion"></div>
+      <div class="field"><label>Proposta modificabile</label><textarea id="wfDraft"></textarea></div>
+    </div>
+  </div>
+
+  <div class="panel"><h3>Revisore</h3><button class="btn warn" id="reviewButton" type="button">Controlla pratica</button><div id="reviewBox"></div></div>
+  <button class="btn danger" id="newPracticeButton" type="button">Nuova pratica / azzera tutto</button>
+</section>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const A=window.ADMIN3;
+  if(!A||!A.state){
+    document.body.textContent="";
+    const box=document.createElement("div");
+    box.style.cssText="max-width:620px;margin:80px auto;padding:24px;border:1px solid #7c3b2c;background:#321b16;color:#fdba9a;border-radius:12px;line-height:1.6;font-family:sans-serif";
+    box.textContent="Motore del workflow non caricato. Verifica che config.js e assets/workflow.js siano raggiungibili e ricarica la pagina.";
+    document.body.appendChild(box);
+    return;
+  }
+  const MODULE_META={
+    edili:{label:"Pareri Edili",path:"modules/pareri-edili.html"},
+    esposto:{label:"Riscontro Esposto",path:"modules/riscontro-esposto.html"},
+    sorvegliabilita:{label:"Sorvegliabilità",path:"modules/sorvegliabilita.html"},
+    ricettive:{label:"Strutture Ricettive",path:"modules/strutture-ricettive.html"}
+  };
+  const $=id=>document.getElementById(id);
+  const frame=$("frame"),home=$("home"),title=$("pageTitle");
+  let workflowDocument=null;
+
+  function setList(element,items,emptyText){
+    element.textContent="";
+    const values=Array.isArray(items)&&items.length?items:[emptyText];
+    values.forEach(value=>{const li=document.createElement("li");li.textContent=value;element.appendChild(li);});
+  }
+
+  function showHome(){
+    frame.style.display="none";frame.src="about:blank";home.style.display="block";title.textContent="Nuova pratica";
+    document.querySelectorAll("[data-home],[data-module]").forEach(x=>x.classList.remove("active"));
+    document.querySelector("[data-home]").classList.add("active");
+  }
+
+  function openModule(path,key,label){
+    A.state.module=key;
+    if(A.state.classification)A.state.classification.confirmedModule=key;
+    A.state.status="routed";A.save();
+    home.style.display="none";frame.style.display="block";frame.src=path;title.textContent=label;
+    document.querySelectorAll("[data-home],[data-module]").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(`[data-module="${path}"]`).forEach(x=>x.classList.add("active"));
+    syncUI();
+  }
+
+  function saveCommon(){
+    A.state.practice.id=$("wfId").value.trim();
+    A.state.practice.subject=$("wfSubject").value.trim();
+    A.state.practice.location=$("wfLocation").value.trim();
+    A.state.practice.protocol=$("wfProtocol").value.trim();
+    A.state.practice.date=A.normDate($("wfDate").value);
+    A.state.practice.notes=$("operatorNotes").value.trim();
+    A.state.draft=$("wfDraft").value;
+    A.save();syncUI();
+  }
+
+  function renderExtraction(){
+    const result=A.state.extraction;
+    const box=$("intakeResult");
+    if(!result){box.classList.remove("show");return;}
+    const meta=MODULE_META[result.module]||{label:"Percorso da verificare"};
+    $("routeBadge").textContent=meta.label;
+    $("routeConfidence").textContent="Confidenza "+(result.confidence||"da verificare");
+    $("routeReason").textContent=result.routeReason||"Verifica il percorso proposto.";
+    $("sourceSummary").textContent=result.sourceSummary||"Nessuna sintesi disponibile.";
+    setList($("keyFacts"),result.keyFacts,"Nessun fatto certo estratto.");
+    setList($("missingInformation"),result.missingInformation,"Nessuna mancanza segnalata.");
+    $("routeSelect").value=result.module;
+    const unsupported=result.isSupported===false;
+    $("routeWarning").hidden=!unsupported;
+    $("routeWarning").textContent=unsupported?"Il documento potrebbe non appartenere ai quattro percorsi disponibili. Controlla manualmente prima di proseguire.":"";
+    box.classList.add("show");
+  }
+
+  function renderWriter(){
+    const result=A.state.writer;
+    const box=$("writerResult");
+    if(!result){box.classList.remove("show");return;}
+    $("writerSummary").textContent=result.summary||"";
+    setList($("writerSuggestions"),result.suggestions,"Nessun suggerimento ulteriore.");
+    setList($("writerMissing"),result.missingInformation,"Nessuna informazione mancante segnalata.");
+    $("writerQuestion").textContent=result.nextQuestion?"Domanda utile: "+result.nextQuestion:"";
+    $("wfDraft").value=A.state.draft||result.text||"";
+    box.classList.add("show");
+  }
+
+  window.syncUI=function(){
+    const setField=(id,value)=>{const el=$(id);if(document.activeElement!==el)el.value=value||"";};
+    setField("wfId",A.state.practice.id);
+    setField("wfSubject",A.state.practice.subject);
+    setField("wfLocation",A.state.practice.location);
+    setField("wfProtocol",A.state.practice.protocol);
+    setField("wfDate",A.state.practice.date);
+    if(document.activeElement!==$("operatorNotes"))$("operatorNotes").value=A.state.practice.notes||"";
+    if(document.activeElement!==$("wfDraft"))$("wfDraft").value=A.state.draft||"";
+    $("dotDocument").classList.toggle("on",!!workflowDocument||!!A.state.extraction);
+    $("dotExtract").classList.toggle("on",!!A.state.extraction);
+    $("dotRoute").classList.toggle("on",!!A.state.module);
+    $("dotDraft").classList.toggle("on",!!(A.state.draft||"").trim());
+    $("dotReview").classList.toggle("on",A.state.status==="ready");
+    $("statusBadge").textContent=A.state.status==="ready"?"PRONTA":A.state.status==="needs_review"?"DA RIVEDERE":A.state.status==="new"?"NUOVA PRATICA":"IN LAVORAZIONE";
+    $("statusBadge").title=A.state.saveError||"";
+    if(A.state.saveError)$("statusBadge").textContent="MEMORIA PIENA";
+    renderExtraction();renderWriter();
+  };
+
+  $("wfPdf").addEventListener("change",function(){
+    const file=this.files&&this.files[0];workflowDocument=null;
+    if(!file){$("wfPdfInfo").textContent="Nessun PDF selezionato";syncUI();return;}
+    const mime=String(file.type||"").toLowerCase();
+    const mimeOk=mime===""||mime==="application/pdf"||mime==="application/octet-stream";
+    if(!mimeOk||!file.name.toLowerCase().endsWith(".pdf")){this.value="";$("wfPdfInfo").textContent="Formato non valido";alert("Seleziona un file PDF.");return;}
+    if(file.size<1||file.size>8*1024*1024){this.value="";$("wfPdfInfo").textContent="Dimensione non valida";alert("Il PDF deve avere dimensione massima di 8 MB.");return;}
+    workflowDocument=file;$("wfPdfInfo").textContent=file.name+" · "+(file.size/1024/1024).toFixed(2)+" MB";syncUI();
+  });
+
+  function readWorkflowDocument(){
+    return new Promise((resolve,reject)=>{
+      if(!workflowDocument){reject(new Error("Carica prima un PDF."));return;}
+      const reader=new FileReader();
+      reader.onload=()=>resolve({filename:workflowDocument.name.slice(0,128),mimeType:"application/pdf",size:workflowDocument.size,base64:String(reader.result||"").split(",")[1]||""});
+      reader.onerror=()=>reject(new Error("Lettura del PDF non riuscita."));reader.readAsDataURL(workflowDocument);
+    });
+  }
+
+  function hasWorkInProgress(){
+    if((A.state.draft||"").trim())return true;
+    if(A.state.extraction||A.state.writer)return true;
+    return Object.keys(A.state.moduleData||{}).length>0;
+  }
+
+  async function analyzePractice(){
+    if(!workflowDocument){alert("Carica prima il PDF della pratica.");return;}
+    if(hasWorkInProgress()&&!confirm("Analizzare questo PDF azzera la pratica in corso: estrazione, testo del Redattore e bozze dei moduli. Procedere?"))return;
+    $("analyzeButton").disabled=true;$("analysisBusy").classList.add("show");
+    try{
+      const documentData=await readWorkflowDocument();
+      A.reset();
+      const result=await A.callAgent("extractor",{document:documentData,practice:{}},"auto");
+      A.state.extraction=result;
+      A.state.classification={suggestedModule:result.module,confidence:result.confidence,routeReason:result.routeReason,confirmedModule:null};
+      if(result.practice&&typeof result.practice==="object"){Object.assign(A.state.practice,result.practice);A.state.practice.date=A.normDate(A.state.practice.date);}
+      A.state.status="extracted";A.save();syncUI();
+    }catch(error){alert(error.message);}
+    finally{$("analyzeButton").disabled=false;$("analysisBusy").classList.remove("show");}
+  }
+
+  async function runWriter(mode){
+    saveCommon();
+    if(!A.state.module){alert("Conferma prima il percorso della pratica.");return;}
+    if(!A.state.extraction&&!A.state.practice.notes){alert("Analizza un documento oppure scrivi le indicazioni dell’operatore.");return;}
+    const buttons=[$("summarizeButton"),$("draftButton")];buttons.forEach(button=>button.disabled=true);
+    try{
+      const result=await A.callAgent("writer",{
+        mode,
+        practice:A.state.practice,
+        extraction:A.state.extraction,
+        moduleData:A.state.moduleData[A.state.module]||{},
+        operatorNotes:A.state.practice.notes,
+        currentDraft:A.state.draft
+      },A.state.module);
+      A.state.writer=result;
+      if(result.text)A.state.draft=result.text;
+      A.state.status="drafted";A.save();syncUI();
+    }catch(error){alert(error.message);}
+    finally{buttons.forEach(button=>button.disabled=false);}
+  }
+
+  function runReview(){
+    saveCommon();const findings=A.review(),box=$("reviewBox");box.textContent="";
+    if(!findings.length){const ok=document.createElement("div");ok.className="ok";ok.textContent="✓ Nessuna anomalia comune rilevata";box.appendChild(ok);}
+    else findings.forEach(item=>{const finding=document.createElement("div");finding.className="finding";finding.textContent="⚠ "+item.label;box.appendChild(finding);});
+    syncUI();
+  }
+
+  function newPractice(){
+    if(!confirm("Azzera completamente pratica, estrazione, testo e bozze dei moduli?"))return;
+    A.reset();workflowDocument=null;$("wfPdf").value="";$("wfPdfInfo").textContent="Nessun PDF selezionato";$("reviewBox").textContent="";showHome();syncUI();
+  }
+
+  window.requestNewPracticeFromModule=newPractice;
+
+  document.querySelectorAll("[data-module]").forEach(el=>el.addEventListener("click",()=>openModule(el.dataset.module,el.dataset.key,el.dataset.title)));
+  document.querySelector("[data-home]").addEventListener("click",showHome);
+  $("analyzeButton").addEventListener("click",analyzePractice);
+  $("confirmRoute").addEventListener("click",()=>{const key=$("routeSelect").value,meta=MODULE_META[key];openModule(meta.path,key,meta.label);});
+  $("savePractice").addEventListener("click",saveCommon);
+  $("summarizeButton").addEventListener("click",()=>runWriter("summary"));
+  $("draftButton").addEventListener("click",()=>runWriter("draft"));
+  $("reviewButton").addEventListener("click",runReview);
+  $("newPracticeButton").addEventListener("click",newPractice);
+  $("mobilePanel").addEventListener("click",()=>$("rightPanel").classList.toggle("open"));
+  $("wfDraft").addEventListener("input",()=>{A.state.draft=$("wfDraft").value;A.save();});
+  ["wfId","wfSubject","wfLocation","wfProtocol","wfDate","operatorNotes"].forEach(id=>$(id).addEventListener("blur",saveCommon));
+  syncUI();
+})();
+</script>
+</body>
+</html>

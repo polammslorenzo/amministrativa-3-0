@@ -1,0 +1,2 @@
+[functions.agent]
+verify_jwt = false
