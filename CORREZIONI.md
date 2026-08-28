@@ -266,6 +266,17 @@ funzione è pubblicata con `--no-verify-jwt`, quindi il controllo sulle origini
 non è un controllo d'accesso: la protezione effettiva è il limite di 20 richieste
 ogni 10 minuti per IP, più il tetto di spesa sul progetto OpenAI.
 
-Resta da fare: il **limite di spesa sul progetto OpenAI** (punto 1 dell'elenco in
-cima a questo file) e la pubblicazione del sito su GitHub Pages, che questa
-cartella non fa perché non è ancora un repository git.
+## Sito pubblicato — 29 agosto 2026
+
+Repository `polammslorenzo/amministrativa-3-0`, pubblico. Pages con sorgente
+GitHub Actions: https://polammslorenzo.github.io/amministrativa-3-0/
+
+Non è stato usato il repository `polammslorenzo.github.io`, che serve la radice
+del sito utente e contiene già una cartella `oauth/`. L'origine però è la stessa,
+quindi `ALLOWED_ORIGINS` resta valida.
+
+Il primo workflow ha superato entrambi i job: `verifica` (scansione segreti e 22
+test) e `deploy`. Sito raggiungibile, motore caricato, nessun errore in console.
+
+Resta da fare: il **limite di spesa sul progetto OpenAI**, punto 1 dell'elenco in
+cima a questo file. È l'unica voce ancora aperta.
