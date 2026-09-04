@@ -100,7 +100,7 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
     <div class="sec"><div class="sh">Riferimenti risposta</div>
       <div class="g2">
         <div class="f"><label>PG Risposta</label><input id="pgR" placeholder="es. 240448"></div>
-        <div class="f"><label>Data risposta (GG.MM.AAAA)</label><input id="dataR" oninput="var di=document.getElementById('dataI'); if(di) di.value=this.value;"></div>
+        <div class="f"><label>Data risposta (GG/MM/AA)</label><input id="dataR" oninput="var di=document.getElementById('dataI'); if(di) di.value=this.value;"></div>
       </div>
     </div>
     <div class="sec"><div class="sh">Riferimenti SUAP</div>
@@ -134,6 +134,13 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
         </div>
         <input type="hidden" id="esito" value="c">
       </div>
+      <div class="f" style="margin-bottom:12px">
+        <label>Verifiche svolte</label>
+        <div id="checklistRic" style="display:grid;gap:6px"></div>
+        <button type="button" class="bai" id="bComponi" onclick="componiAccertamento()" style="margin-top:10px">&#10022; Componi accertamento</button>
+        <div style="font-size:11px;color:#6b7280;margin-top:6px">Il testo si compone dalle voci qui sopra, sempre con le stesse parole. Resta modificabile.</div>
+      </div>
+      <input type="hidden" id="accComposto" value="">
       <div id="ncRow" style="display:none">
         <div class="f" style="margin-bottom:12px">
           <label>Motivo dell’irregolarità / non conformità</label>
@@ -198,6 +205,25 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
         </div>
       </div>
     </div>
+    <div class="sec"><div class="sh">Testo PEC</div>
+      <div class="tog-row">
+        <div class="tog" id="togP" onclick="togPec()"><div class="knob" id="knobP"></div></div>
+        <span id="labelP" style="font-size:13px;color:#6b7280;cursor:pointer" onclick="togPec()">Genera anche il testo della PEC</span>
+      </div>
+      <div id="pecSec" style="display:none">
+        <div class="g2">
+          <div class="f"><label>Destinatario PEC</label><input id="pecSuap" value="suap@pec.comune.napoli.it"></div>
+          <div class="f"><label>Prot. SUAP (automatico)</label><input id="pecProt" readonly placeholder="Compilato dal Protocollo SUAP" style="background:#1a1d24;color:#9ca3af"></div>
+        </div>
+        <div class="f" style="margin-bottom:12px"><label>Oggetto PEC</label><input id="pecSubject" placeholder="Compilato automaticamente, modificabile"></div>
+        <div class="f"><label>Corpo PEC</label><textarea id="pecBody" rows="16" placeholder="Premi Genera testo PEC"></textarea></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button type="button" class="bman" style="width:auto;flex:1;margin-top:0" onclick="generaTestoPec()">Genera testo PEC</button>
+          <button type="button" class="bsmall" onclick="copiaTestoPec()">Copia testo PEC</button>
+        </div>
+        <div style="font-size:11px;color:#6b7280;margin-top:8px">Il programma prepara soltanto il testo: l'invio e l'allegato restano manuali.</div>
+      </div>
+    </div>
     <div class="acts">
       <button class="bgen" id="bGen" onclick="genera()">&#11015; Genera DOCX</button>
       <button class="breset" onclick="admin3NewPractice()">Nuova pratica</button>
@@ -223,7 +249,7 @@ document.getElementById('dz').ondrop = function(e){
 };
 (function(){
   var n=new Date(),d=n.getDate().toString().padStart(2,'0'),m=(n.getMonth()+1).toString().padStart(2,'0'),y=n.getFullYear().toString().slice(-2),yf=n.getFullYear();
-  document.getElementById('dataR').value=d+'.'+m+'.'+n.getFullYear();
+  document.getElementById('dataR').value=d+'/'+m+'/'+y;
   document.getElementById('dataAcc').value=d+'.'+m+'.'+yf;
 })();
 
@@ -293,8 +319,13 @@ async function genera(){
   if(!validateRequired(['pgR','dataR','via','nomeStruttura','tit','dataAcc','ora','prov']))return;
   var motivo=document.getElementById('testoNC').value.trim() || document.getElementById('noteNC').value.trim();
   var testoNC='';
-  if((esito==='n'||esito==='p')&&!motivo){mostraMsg('E','Inserisci il motivo dell’irregolarità o della non conformità');return;}
-  if(esito==='c'){
+  var composto=(document.getElementById('accComposto')||{}).value==='1'
+    && (document.getElementById('testoNC')||{}).value.trim();
+  if(!composto&&(esito==='n'||esito==='p')&&!motivo){mostraMsg('E','Inserisci il motivo dell’irregolarità o della non conformità');return;}
+  if(composto){
+    // Il testo viene dalla checklist: si usa integralmente, non lo si riavvolge.
+    testoNC=document.getElementById('testoNC').value.trim();
+  }else if(esito==='c'){
     testoNC='A seguito dei controlli effettuati dagli scriventi si è accertato che la struttura risultava conforme a quanto dichiarato nella SCIA presentata e agli obblighi oggetto di verifica.';
   }else if(esito==='p'){
     motivo=motivo.replace(/[.\s]+$/,'');
@@ -306,16 +337,16 @@ async function genera(){
   var btn=document.getElementById('bGen');btn.disabled=true;btn.textContent='Generazione...';
   mostraMsg('L','Creazione DOCX...');
   try{
-    var pg=protocolRef(document.getElementById('pgR').value);
-    var dataR=normDate(document.getElementById('dataR').value);
+    var pgRaw=document.getElementById('pgR').value.trim(); var pgAnno=pgYearOf(pgRaw); var pg=pgRaw.replace(/^PG\/\d{4}\//i,''); if(pg) pg='PG/'+pgAnno+'/'+pg;
+    var dataR=document.getElementById('dataR').value.trim();
     var pgRif=document.getElementById('pgRif').value.trim();
-    var dataRif=normDate(document.getElementById('dataRif').value);
+    var dataRif=document.getElementById('dataRif').value.trim();
     var protSUAP=document.getElementById('protSUAP').value.trim();
     var via=document.getElementById('via').value.trim();
     var tit=document.getElementById('tit').value.trim();
     var nomeStruttura=document.getElementById('nomeStruttura').value.trim();
     var tipoStruttura=document.getElementById('tipoStruttura').value.trim();
-    var dataAcc=normDate(document.getElementById('dataAcc').value);
+    var dataAcc=document.getElementById('dataAcc').value.trim();
     var ora=document.getElementById('ora').value.trim();
     var prov=document.getElementById('prov').value.trim();
     var ags=['ag1','ag2','ag3','ag4'].map(function(id){var s=document.getElementById(id);return s.options[s.selectedIndex].text;}).filter(function(t){return t!=='--';}).join(' - ');
@@ -329,7 +360,7 @@ async function genera(){
     xml=rf(xml,'PG/2026/240448',pg);
     xml=xml.split('<w:t>   del   23.02.26</w:t>').join('<w:t>   del   '+xe(dataR)+'</w:t>');
     xml=xml.split('<w:t xml:space="preserve">   del   23.02.26</w:t>').join('<w:t xml:space="preserve">   del   '+xe(dataR)+'</w:t>');
-    xml=rf(xml,'PG/2026/188193 del 10.02.2026',protocolRef(pgRif)+' del '+dataRif);
+    xml=rf(xml,'PG/2026/188193 del 10.02.2026','PG/'+protocolYear()+'/'+pgRif+' del '+dataRif);
     xml=rf(xml,'1184130/2025',protSUAP);
     xml=rf(xml,'VIA LORENZO GIUSTINIANI 40',via);
     xml=rf(xml,'PASTORE LUIGI — Affittacamere &quot;IL BORGO&quot;',tit+' — '+tipoStruttura+' «'+nomeStruttura+'»');
@@ -352,14 +383,14 @@ async function genera(){
     xml=rf(xml,'A.C. FERRARA 3015',ags);
 
     xml=polishDocumentXml(xml,APP_DOC_KIND); await polishDocxStyles(zip); zip.file('word/document.xml',xml);
-    var blob=await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
-    var url=URL.createObjectURL(blob);
-    var a=document.createElement('a');a.href=url;a.download=safeFileName('Ricettive_'+nomeStruttura+'_'+pg)+'.docx';a.click();recordPracticeFromForm();
-    setTimeout(function(){URL.revokeObjectURL(url);},5000);
+    var _xmlRel=xml; var _nomeFile=(window.nomeFilePratica?window.nomeFilePratica(pg,'ric',(document.getElementById('nomeStruttura')||{}).value):null);
+    var blob=letteraOn?null:await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+    if(!letteraOn){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(_nomeFile||'relazione')+'.docx';a.click();}recordPracticeFromForm();
 
     if(letteraOn){
-      var pgI=protocolRef(document.getElementById('pgI').value);
-      var dataI=letterDate(dataR);
+      var pgI=document.getElementById('pgI').value.trim(); pgI=pgI.replace(/^PG\/\d{4}\//i,'');
+      var dataIEl=document.getElementById('dataI');
+      var dataI=(dataIEl&&dataIEl.value.trim())?dataIEl.value.trim():dataR;
       var utente=tit||nomeStruttura;
       var dA=document.getElementById('destA');var dU=document.getElementById('destU');
       var areaVal=dA.options[dA.selectedIndex].value||"All'Area Sviluppo Socio Economico e Competitivita";
@@ -371,7 +402,7 @@ async function genera(){
       xmlL=rf(xmlL,'PG/2026/375181',pg);
       xmlL=xmlL.split('<w:t>   del   28/03/26</w:t>').join('<w:t>   del   '+xe(dataI)+'</w:t>');
       xmlL=xmlL.split('<w:t xml:space="preserve">   del   28/03/26</w:t>').join('<w:t xml:space="preserve">   del   '+xe(dataI)+'</w:t>');
-      xmlL=rf(xmlL,'PG/2026/301627',pgI||protocolRef(pgRif));
+      xmlL=rf(xmlL,'PG/2026/301627',pgI?'PG/'+protocolYear()+'/'+pgI:'PG/'+protocolYear()+'/'+pgRif);
       xmlL=rf(xmlL,'c_f839/Comune_di_Napoli 1176287/17-12-2025',protSUAP||'');
       xmlL=rf(xmlL,'Trasmissione atti — CONTROLLO POSTEGGIO MERCATO CARAMANICO','Trasmissione atti — ACCERTAMENTO STRUTTURA RICETTIVA - '+nomeStruttura);
       xmlL=rf(xmlL,'CRISTIANO VINCENZO',utente);
@@ -395,11 +426,19 @@ async function genera(){
       xmlL=_styleParaByText(xmlL,fq.options[fq.selectedIndex].text,{right:true,before:100,after:20,keep:true});
       xmlL=_styleParaByText(xmlL,fn.options[fn.selectedIndex].text,{right:true,before:0,after:20,keep:true});
       xmlL=polishDocumentXml(xmlL,APP_DOC_KIND); await polishDocxStyles(zipL); zipL.file('word/document.xml',xmlL);
+      var _unito=window.uniscoCorpiDocx?window.uniscoCorpiDocx(xmlL,_xmlRel):null;
+      if(_unito) zipL.file('word/document.xml',_unito);
       var blobL=await zipL.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
-      setTimeout(function(){var urlL=URL.createObjectURL(blobL);var aL=document.createElement('a');aL.href=urlL;aL.download='Lettera_Ric_'+pg+'.docx';aL.click();setTimeout(function(){URL.revokeObjectURL(urlL);},5000);},800);
-      mostraMsg('O','&#10003; Scaricati 2 file: Riscontro + Lettera');
+      var urlL=URL.createObjectURL(blobL); var aL=document.createElement('a');
+      aL.href=urlL; aL.download=(_nomeFile||'fascicolo')+'.docx'; aL.click();
+      setTimeout(function(){URL.revokeObjectURL(urlL);},5000);
+      if(!_unito){
+        var blobR=await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+        setTimeout(function(){var uR=URL.createObjectURL(blobR);var aR=document.createElement('a');aR.href=uR;aR.download=(_nomeFile||'relazione')+'_relazione.docx';aR.click();setTimeout(function(){URL.revokeObjectURL(uR);},5000);},800);
+      }
+      mostraMsg('O','&#10003; Scaricato: '+(_nomeFile||'fascicolo')+'.docx'+(_unito?'':' (fusione non riuscita: 2 file)'));
     } else {
-      mostraMsg('O','&#10003; Scaricato: Ricettive_PG_'+pg+'.docx');
+      mostraMsg('O','&#10003; Scaricato: '+(_nomeFile||'relazione')+'.docx');
     }
   }catch(e){mostraMsg('E','Errore: '+e.message);}
   btn.disabled=false;btn.innerHTML='&#11015; Genera DOCX';
@@ -408,32 +447,13 @@ async function genera(){
 // ===== Migliorie operative v2.1 =====
 var APP_VERSION='3.4 - titoli trasmissione a sinistra';
 var MAX_FILE_MB=12;
-var MESI_IT=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
-function pad2(n){n=String(n);return n.length<2?'0'+n:n;}
-function normDate(v){
-  v=String(v||'').trim(); if(!v)return '';
-  var m=v.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})$/);
-  if(m)return pad2(m[3])+'.'+pad2(m[2])+'.'+m[1];
-  m=v.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2}|\d{4})$/);
-  if(m)return pad2(m[1])+'.'+pad2(m[2])+'.'+(m[3].length===2?'20'+m[3]:m[3]);
-  m=v.match(/^(\d{1,2})\s+([A-Za-zàèéìòù]+)\s+(\d{4})$/);
-  if(m){var i=MESI_IT.indexOf(m[2].toLowerCase());if(i>=0)return pad2(m[1])+'.'+pad2(i+1)+'.'+m[3];}
-  return v;
-}
-function protocolRefY(v,y){
-  v=String(v||'').trim(); if(!v)return '';
-  var m=v.match(/^PG\/(\d{4})\/(.+)$/i);
-  return m?('PG/'+m[1]+'/'+m[2].trim()):('PG/'+(y||protocolYear())+'/'+v);
-}
-function protocolRef(v){return protocolRefY(v,'');}
-function letterDate(fallback){var e=document.getElementById('dataI');var v=e?String(e.value||'').trim():'';return normDate(v||fallback);}
-
+function pgYearOf(raw){var m=String(raw||'').match(/^\s*PG\/(\d{4})\//i);return m?m[1]:protocolYear();}
 function protocolYear(){var e=document.getElementById('annoProt');return e&&/^\d{4}$/.test(e.value)?e.value:String(new Date().getFullYear());}
 function formatDateExt(d){var m=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];return d.getDate()+' '+m[d.getMonth()]+' '+d.getFullYear();}
 function initOperationalEnhancements(){
   var sub=document.querySelector('.hdr>div:last-child');if(sub&&!sub.querySelector('.ver')){var v=document.createElement('div');v.className='ver';v.textContent='Versione '+APP_VERSION;sub.appendChild(v);}
   var pg=document.getElementById('pgR');if(pg&&!document.getElementById('annoProt')){var f=pg.closest('.f');if(f){var y=document.createElement('input');y.id='annoProt';y.inputMode='numeric';y.maxLength=4;y.value=String(new Date().getFullYear());y.placeholder='Anno protocollo';y.style.marginTop='6px';f.appendChild(y);}}
-  ['dataR','dataAcc'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.value){var n=new Date();e.value=String(n.getDate()).padStart(2,'0')+'.'+String(n.getMonth()+1).padStart(2,'0')+'.'+String(n.getFullYear());}});
+  ['dataR','dataAcc'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.value){var n=new Date();e.value=String(n.getDate()).padStart(2,'0')+'/'+String(n.getMonth()+1).padStart(2,'0')+'/'+String(n.getFullYear()).slice(-2);}});
   var o=document.getElementById('ora');if(o&&!o.value){var n=new Date();o.value=String(n.getHours()).padStart(2,'0')+'.'+String(n.getMinutes()).padStart(2,'0');}
   ['dataNap','dataN'].forEach(function(id){var e=document.getElementById(id);if(e)e.value=formatDateExt(new Date());});
   var form=document.getElementById('form');if(form&&!document.getElementById('draftTools')){var t=document.createElement('div');t.id='draftTools';t.className='toolbar';t.innerHTML='<button type="button" class="bsmall" onclick="saveDraft(true)">Salva bozza</button><button type="button" class="bsmall" onclick="loadDraft(true)">Riprendi bozza</button><button type="button" class="bsmall" onclick="showPreview()">Anteprima</button><button type="button" class="bsmall" onclick="exportRegistryCSV()">Esporta registro CSV</button><button type="button" class="bsmall" onclick="clearDraft()">Cancella bozza</button>';form.insertBefore(t,form.firstChild);}
@@ -474,14 +494,37 @@ function _ensurePPr(p,extra){
 }
 function _styleParagraph(p,opt){
   opt=opt||{};
-  var pp='';
-  if(opt.center||opt.right||opt.left){p=p.replace(/<w:jc\b[^>]*\/>/g,'');}
-  if(opt.center)pp+='<w:jc w:val="center"/>';
-  if(opt.right)pp+='<w:jc w:val="right"/>';
-  if(opt.left)pp+='<w:jc w:val="left"/>';
-  if(opt.keep)pp+='<w:keepNext/>';
-  pp+='<w:spacing w:before="'+(opt.before||0)+'" w:after="'+(opt.after||100)+'" w:line="'+(opt.line||276)+'" w:lineRule="auto"/>';
-  p=_ensurePPr(p,pp);
+  // L'ordine degli elementi dentro <w:pPr> e' imposto dallo schema OOXML e non
+  // e' quello in cui viene comodo scriverli: keepNext viene prima di spacing,
+  // spacing prima di jc. Scrivendoli fuori ordine Word scarta il blocco — per
+  // questo l'allineamento non attecchiva — e su certe versioni compare
+  // l'avviso "contenuto illeggibile". Qui gli elementi vengono raccolti,
+  // deduplicati e riordinati secondo lo schema.
+  var ORDINE=['pStyle','keepNext','keepLines','pageBreakBefore','framePr','widowControl','numPr','suppressLineNumbers','pBdr','shd','tabs','suppressAutoHyphens','kinsoku','wordWrap','overflowPunct','topLinePunct','autoSpaceDE','autoSpaceDN','bidi','adjustRightInd','snapToGrid','spacing','ind','contextualSpacing','mirrorIndents','suppressOverlap','jc','textDirection','textAlignment','textboxTightWrap','outlineLvl','divId','cnfStyle','rPr','sectPr','pPrChange'];
+  var esistente='';
+  var mp=p.match(/<w:pPr(?:\s[^>]*)?>([\s\S]*?)<\/w:pPr>/);
+  if(mp)esistente=mp[1];
+  else{var vuoto=p.match(/<w:pPr(?:\s[^>]*)?\/>/);if(vuoto)esistente='';}
+  var elementi=[];
+  var re=/<w:([A-Za-z]+)\b[^>]*\/>|<w:([A-Za-z]+)\b[^>]*>[\s\S]*?<\/w:\2>/g,m;
+  while((m=re.exec(esistente))!==null)elementi.push({tag:m[1]||m[2],xml:m[0]});
+  function togli(tag){elementi=elementi.filter(function(e){return e.tag!==tag;});}
+  if(opt.center||opt.right||opt.left)togli('jc');
+  if(opt.center)elementi.push({tag:'jc',xml:'<w:jc w:val="center"/>'});
+  if(opt.right)elementi.push({tag:'jc',xml:'<w:jc w:val="right"/>'});
+  if(opt.left)elementi.push({tag:'jc',xml:'<w:jc w:val="left"/>'});
+  if(opt.keep){togli('keepNext');elementi.push({tag:'keepNext',xml:'<w:keepNext/>'});}
+  togli('spacing');
+  elementi.push({tag:'spacing',xml:'<w:spacing w:before="'+(opt.before||0)+'" w:after="'+(opt.after||100)+'" w:line="'+(opt.line||276)+'" w:lineRule="auto"/>'});
+  elementi.sort(function(a,b){
+    var ia=ORDINE.indexOf(a.tag),ib=ORDINE.indexOf(b.tag);
+    if(ia<0)ia=ORDINE.length;if(ib<0)ib=ORDINE.length;
+    return ia-ib;
+  });
+  var pPr='<w:pPr>'+elementi.map(function(e){return e.xml;}).join('')+'</w:pPr>';
+  if(/<w:pPr(?:\s[^>]*)?>[\s\S]*?<\/w:pPr>/.test(p))p=p.replace(/<w:pPr(?:\s[^>]*)?>[\s\S]*?<\/w:pPr>/,pPr);
+  else if(/<w:pPr(?:\s[^>]*)?\/>/.test(p))p=p.replace(/<w:pPr(?:\s[^>]*)?\/>/,pPr);
+  else p=p.replace(/<w:p([^>]*)>/,'<w:p$1>'+pPr);
   if(opt.size){p=p.replace(/<w:sz(?:Cs)?\s+w:val="[^"]+"\s*\/>/g,'');p=p.replace(/<w:rPr([^>]*)>/g,'<w:rPr$1><w:sz w:val="'+opt.size+'"/><w:szCs w:val="'+opt.size+'"/>');}
   if(opt.bold){p=p.replace(/<w:rPr([^>]*)>/g,'<w:rPr$1><w:b/><w:bCs/>');}
   return p;
@@ -599,6 +642,166 @@ async function polishDocxStyles(zip){
 }
 
 </script>
-<script src="../assets/module-ai-bridge.js"></script>
+<script src="../assets/module-ai-bridge.js">
+// ===== Motore PEC (ripreso da Pareri Suolo Pubblico v6.0) =====
+var pecOn = false;
+function togPec(){
+  pecOn=!pecOn;
+  var tog=document.getElementById('togP'), knob=document.getElementById('knobP');
+  var lbl=document.getElementById('labelP'), sec=document.getElementById('pecSec');
+  if(pecOn){ tog.style.background='#2563eb'; knob.style.background='#fff'; knob.style.left='23px'; if(lbl)lbl.style.color='#e8eaf0'; sec.style.display='block'; updatePecFields(true); }
+  else { tog.style.background='#2a2d38'; knob.style.background='#6b7280'; knob.style.left='3px'; if(lbl)lbl.style.color='#6b7280'; sec.style.display='none'; }
+  if(typeof saveDraft==='function')saveDraft(false);
+}
+function _pecV(id){var e=document.getElementById(id);return e?String(e.value||'').trim():'';}
+function _estensorePec(){
+  var v=_pecV('estensore');
+  if(v==='A.C. Ferrara')return 'AC Ferrara Armando';
+  if(v==='ASS Sebastiano')return 'Ass. Sebastiano Andrea';
+  if(v==='ASS Battaglia')return 'Ass. Battaglia';
+  return v||'AC Ferrara Armando';
+}
+function _firmaPec(){
+  return _pecV('fqual')+'\n'+_pecV('fnome')+'\n\ntx: '+_estensorePec()+'\n-------------------\nArea Sicurezza-\nServizio Coordinamento Strategico Operativo\nU.O. San Lorenzo- ufficio Polizia Amministrativa\nVia Rosaroll 31-III Piano 0817952809-12\nmail: polizialocale.sanlorenzo@pec.comune.napoli.it , polizialocale.sanlorenzo@comune.napoli.it\n\nInformativa Privacy - Ai sensi del D. Lgs n. 196/2003 (Codice Privacy) si precisa che le informazioni contenute in questo messaggio sono riservate e ad uso esclusivo del destinatario. Qualora il messaggio in parola Le fosse pervenuto per errore, La preghiamo di eliminarlo senza copiarlo e di non inoltrarlo a terzi, dandocene gentilmente comunicazione. Grazie.';
+}
+function updatePecFields(force){
+  var prot=_pecV('protSUAP');
+  var p=document.getElementById('pecProt'); if(p)p.value=prot;
+  var subj='Trasmissione accertamento struttura ricettiva';
+  if(prot)subj+=' - Prot. SUAP '+prot;
+  var sog=_pecV('nomeStruttura'); if(sog)subj+=' - '+sog;
+  var lg=_pecV('via'); if(lg)subj+=' - '+lg;
+  var s=document.getElementById('pecSubject');
+  if(s&&(force||!s.dataset.useredit))s.value=subj;
+}
+function generaTestoPec(){
+  var b=document.getElementById('pecBody');
+  // Migliorato rispetto all'originale: non si cancella in silenzio un corpo
+  // scritto o corretto a mano.
+  if(b&&b.value.trim()&&b.dataset.useredit==='1'&&!confirm('Il corpo della PEC e stato modificato a mano. Rigenerarlo lo sostituisce. Procedere?'))return;
+  updatePecFields(false);
+  var prot=_pecV('protSUAP'), sog=_pecV('nomeStruttura'), lg=_pecV('via'), pgr=_pecV('pgRif');
+  var corpo='In riferimento alla pratica';
+  if(prot)corpo+=' - Prot. SUAP '+prot;
+  if(pgr)corpo+=' - PG '+pgr;
+  corpo+=', si trasmette in allegato la nota di trasmissione e l'accertamento svolto presso la struttura ricettiva';
+  if(sog)corpo+=' relativo a '+sog;
+  if(lg)corpo+=' sito in '+lg;
+  corpo+='.\n\nSi resta a disposizione per gli eventuali ulteriori adempimenti di competenza.\n\n'+_firmaPec();
+  if(b){b.value=corpo;delete b.dataset.useredit;}
+  if(typeof mostraMsg==='function')mostraMsg('O','Testo PEC generato. Puoi copiarlo e inserirlo nel client PEC.');
+}
+async function copiaTestoPec(){
+  var text=_pecV('pecBody'); if(!text){generaTestoPec();text=_pecV('pecBody');}
+  if(!text){if(typeof mostraMsg==='function')mostraMsg('E','Non c\'e testo da copiare');return;}
+  try{ await navigator.clipboard.writeText(text); if(typeof mostraMsg==='function')mostraMsg('O','Testo PEC copiato negli appunti.'); }
+  catch(e){ var b=document.getElementById('pecBody'); b.focus(); b.select(); try{document.execCommand('copy');if(typeof mostraMsg==='function')mostraMsg('O','Testo PEC copiato negli appunti.');}catch(e2){if(typeof mostraMsg==='function')mostraMsg('E','Copia non riuscita: seleziona il testo e copialo a mano.');} }
+}
+function initPec(){
+  ['protSUAP','pgRif','nomeStruttura','via','estensore','fqual','fnome'].forEach(function(id){
+    var e=document.getElementById(id); if(e)e.addEventListener('input',function(){updatePecFields(false);});
+    if(e&&e.tagName==='SELECT')e.addEventListener('change',function(){updatePecFields(false);});
+  });
+  ['pecSubject','pecBody'].forEach(function(id){
+    var e=document.getElementById(id); if(e)e.addEventListener('input',function(){e.dataset.useredit='1';});
+  });
+  updatePecFields(true);
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initPec); else initPec();
+
+
+// ===== Checklist delle verifiche e composizione dell'accertamento =====
+// Questo testo non e' prosa libera: e' una griglia di voci che stanno o non
+// stanno. Farlo comporre da un modello significa fargli reinventare ogni volta
+// una formula che e' sempre la stessa. Qui le voci decidono, con le parole
+// dell'ufficio; l'IA resta per le criticita' fuori schema.
+var VOCI_RIC = [
+  {id:'vScia',      etichetta:'Conformità a quanto dichiarato nella SCIA', cat:'scia',
+   ok:'conforme a quanto dichiarato nella SCIA presentata',
+   ko:'difforme da quanto dichiarato nella SCIA presentata'},
+  {id:'vCin',       etichetta:'CIN — Codice Identificativo Nazionale', cat:'obbligo',
+   ok:'dotata di CIN', ko:'sprovvista di CIN'},
+  {id:'vAlloggiati',etichetta:'Iscrizione portale Alloggiati Web', cat:'obbligo',
+   ok:'iscritta al portale Alloggiati Web', ko:'non iscritta al portale Alloggiati Web'},
+  {id:'vTourist',   etichetta:'Iscrizione portale Tourist Tax', cat:'obbligo',
+   ok:'iscritta al portale Tourist Tax', ko:'non iscritta al portale Tourist Tax'},
+  {id:'vLegionella',etichetta:'Autocontrollo prevenzione legionellosi', cat:'obbligo',
+   ok:'in regola con l\'autocontrollo per la prevenzione della legionellosi',
+   ko:'priva della documentazione di autocontrollo per la prevenzione della legionellosi'},
+  {id:'vEstintore', etichetta:'Estintore', cat:'presenza',
+   ok:'estintore regolarmente posizionato e accessibile', ko:'estintore'},
+  {id:'vCo',        etichetta:'Rilevatore di monossido di carbonio', cat:'presenza',
+   ok:'rilevatore di monossido di carbonio installato', ko:'rilevatore di monossido di carbonio'},
+];
+
+function disegnaChecklist(){
+  var box=document.getElementById('checklistRic'); if(!box||box.dataset.pronta)return;
+  VOCI_RIC.forEach(function(v){
+    var riga=document.createElement('div');
+    riga.style.cssText='display:grid;grid-template-columns:1fr 150px;gap:8px;align-items:center';
+    var lab=document.createElement('span');
+    lab.textContent=v.etichetta; lab.style.cssText='font-size:13px;color:#9ca3af';
+    var sel=document.createElement('select'); sel.id=v.id;
+    [['na','— non rilevato'],['c','Conforme'],['nc','Non conforme']].forEach(function(o){
+      var op=document.createElement('option'); op.value=o[0]; op.textContent=o[1]; sel.appendChild(op);
+    });
+    riga.appendChild(lab); riga.appendChild(sel); box.appendChild(riga);
+  });
+  box.dataset.pronta='1';
+}
+
+function _statoVoce(id){var e=document.getElementById(id);return e?String(e.value||'na'):'na';}
+function _elenca(pezzi){
+  if(!pezzi.length)return '';
+  if(pezzi.length===1)return pezzi[0];
+  return pezzi.slice(0,-1).join(', ')+' e '+pezzi[pezzi.length-1];
+}
+function _punti(pezzi){
+  return pezzi.map(function(t,i){return '\u2022\t'+t+(i===pezzi.length-1?'.':';');}).join('\n');
+}
+
+function componiAccertamento(){
+  disegnaChecklist();
+  var scia=_statoVoce('vScia');
+  var obbOk=[],obbKo=[],preOk=[],preKo=[];
+  VOCI_RIC.forEach(function(v){
+    if(v.cat==='scia')return;
+    var st=_statoVoce(v.id); if(st==='na')return;
+    var dove=v.cat==='obbligo'?(st==='c'?obbOk:obbKo):(st==='c'?preOk:preKo);
+    dove.push(st==='c'?v.ok:v.ko);
+  });
+  // I due portali si citano insieme, come li cita l'ufficio.
+  var iA=obbOk.indexOf('iscritta al portale Alloggiati Web'), iT=obbOk.indexOf('iscritta al portale Tourist Tax');
+  if(iA>=0&&iT>=0){
+    obbOk.splice(Math.max(iA,iT),1); obbOk.splice(Math.min(iA,iT),1,'iscritta ai portali Alloggiati Web e Tourist Tax');
+  }
+  if(scia==='na'&&!obbOk.length&&!obbKo.length&&!preOk.length&&!preKo.length){
+    mostraMsg('E','Compila almeno una voce delle verifiche svolte'); return;
+  }
+  var righe=[];
+  var apertura='A seguito dei controlli effettuati dagli scriventi si è accertato che la struttura risulta ';
+  if(scia==='c')apertura+='conforme a quanto dichiarato nella SCIA presentata';
+  else if(scia==='nc')apertura+='difforme da quanto dichiarato nella SCIA presentata';
+  else apertura='A seguito dei controlli effettuati dagli scriventi si è accertato quanto segue';
+  // "inoltre" regge solo dopo un'apertura affermativa: se la SCIA e' difforme
+  // o non rilevata, gli obblighi conformi diventano una frase a se'.
+  if(obbOk.length&&scia==='c')apertura+=', inoltre risulta conforme agli obblighi di legge essendo '+_elenca(obbOk);
+  righe.push(apertura+'.');
+  if(obbOk.length&&scia!=='c')righe.push('Risulta conforme agli obblighi di legge essendo '+_elenca(obbOk)+'.');
+  if(obbKo.length)righe.push('La struttura risulta invece '+_elenca(obbKo)+'.');
+  if(preOk.length)righe.push('Nel corso del sopralluogo si è inoltre constatata la presenza di:\n'+_punti(preOk));
+  if(preKo.length)righe.push('Nel corso del sopralluogo non è stata riscontrata la presenza di:\n'+_punti(preKo));
+  var testo=righe.join('\n');
+  var t=document.getElementById('testoNC'); if(t)t.value=testo;
+  var g=document.getElementById('genbox'); if(g)g.style.display='block';
+  var f=document.getElementById('accComposto'); if(f)f.value='1';
+  var quanteKo=obbKo.length+preKo.length+(scia==='nc'?1:0);
+  if(typeof saveDraft==='function')saveDraft(false);
+  if(quanteKo)mostraMsg('O','Accertamento composto. '+quanteKo+' voce/i non conforme/i: verifica che l\'esito selezionato sia coerente.');
+  else mostraMsg('O','Accertamento composto: tutte le voci rilevate risultano conformi.');
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',disegnaChecklist); else disegnaChecklist();
+
+</script>
 </body>
 </html>

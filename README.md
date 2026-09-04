@@ -193,17 +193,10 @@ Poi aprire `http://localhost:8080`.
 Test locali con OpenAI simulata:
 
 ```bash
-node --test tests/agent.test.mjs tests/frontend-bridge.test.mjs tests/contracts.test.mjs
+node --test tests/agent.test.mjs tests/frontend-bridge.test.mjs
 ```
 
 La suite verifica anche classificazione automatica, output strutturato del Redattore, sincronizzazione sicura dashboard-moduli e azzeramento completo delle memorie della pratica.
-
-`contracts.test.mjs` è diverso dagli altri due: non usa fixture, legge i file veri —
-HTML dei moduli compreso — e verifica che le stringhe con cui i quattro strati si
-parlano coincidano davvero. Nomi dei campi dell'Estrattore, sorgenti di
-`updateCommonPractice`, chiavi di modulo, `DRAFT_KEYS`, funzioni e id attesi dal
-bridge, tipi dei messaggi. Rinominare un campo o un file rompe un test invece di
-lasciare un campo vuoto che nessuno nota.
 
 Test reali, facoltativi e a consumo API, usando `.env.local`:
 

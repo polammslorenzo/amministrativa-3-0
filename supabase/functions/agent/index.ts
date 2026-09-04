@@ -94,7 +94,7 @@ const MODULE_WRITER_INSTRUCTIONS: Record<ModuleName, string> = {
   sorvegliabilita:
     "Formalizza il testo relativo alla sorvegliabilità. Se la non conformità è indicata nei dati, descrivi soltanto i motivi forniti; non aggiungere violazioni o conclusioni.",
   ricettive:
-    "Formalizza il testo relativo alla struttura ricettiva. Riporta soltanto controlli, irregolarità e provvedimenti espressamente presenti nei dati.",
+    "Formalizza l'accertamento svolto presso la struttura ricettiva. Riporta soltanto quanto risulta dai dati: conformita' o difformita' rispetto a quanto dichiarato, adempimenti riscontrati, presenze constatate nel corso del sopralluogo. Non elencare provvedimenti: quelli hanno un campo loro.",
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -315,7 +315,7 @@ function extractorRequest(requestedModule: RequestedModule, payload: Record<stri
       "Estrai soltanto dati esplicitamente presenti nella fonte. Non inventare, non completare per plausibilità e non formulare valutazioni giuridiche.",
       "Produci anche una sintesi neutra di massimo 900 caratteri, un elenco breve dei fatti chiave e le informazioni operative mancanti.",
       "Per ogni campo assente restituisci una stringa vuota. Nei campi non pertinenti al percorso scelto restituisci una stringa vuota.",
-      "Ogni data va restituita nel formato gg.mm.aaaa, con giorno e mese a due cifre e anno a quattro (esempio: 04.03.2026). Il giorno viene sempre per primo. Se sul documento la data è scritta in lettere o in altro formato, convertila; se non è possibile stabilirla con certezza, restituisci una stringa vuota invece di indovinarla.",
+      "Le date vanno restituite nel formato gg.mm.aaaa. Se il documento riporta una data ambigua o parziale, lascia il campo vuoto anziche indovinare.",
       `Dati già forniti dall'operatore (da conservare, non reinterpretare): ${supplied}`,
       sourceText ? `Testo fonte aggiuntivo: ${sourceText.slice(0, MAX_TEXT_CHARS)}` : "",
     ].filter(Boolean).join("\n"),
@@ -352,6 +352,24 @@ function writerSchema(): Record<string, unknown> {
   };
 }
 
+function targetInstruction(payload: Record<string, unknown>): string[] {
+  // Il Redattore non sapeva che documento stesse scrivendo: le istruzioni gli
+  // chiedevano "una proposta amministrativa breve e direttamente utilizzabile"
+  // anche quando il bersaglio era un singolo paragrafo dentro un modulo, e con
+  // 4000 token a disposizione riempiva lo spazio.
+  const target = isRecord(payload.target) ? payload.target : null;
+  if (!target) return [];
+  const righe: string[] = [];
+  const campo = typeof target.campo === "string" ? target.campo.trim() : "";
+  const descrizione = typeof target.descrizione === "string" ? target.descrizione.trim() : "";
+  const lunghezza = typeof target.righe === "string" ? target.righe.trim() : "";
+  if (campo) righe.push(`Il testo che produci finisce nel campo "${campo}" di una maschera, non in un documento a sé.`);
+  if (descrizione) righe.push(descrizione);
+  if (lunghezza) righe.push(`Lunghezza attesa: ${lunghezza}. Non superarla.`);
+  righe.push("Rispetta esattamente questo bersaglio: se il testo non ci entra, taglia il superfluo, non aggiungere sezioni.");
+  return righe;
+}
+
 function writerRequest(moduleName: ModuleName, payload: Record<string, unknown>) {
   return {
     model: undefined,
@@ -361,6 +379,7 @@ function writerRequest(moduleName: ModuleName, payload: Record<string, unknown>)
     instructions: [
       "Sei il Redattore di Amministrativa 3.0 per la Polizia Municipale di Napoli.",
       MODULE_WRITER_INSTRUCTIONS[moduleName],
+      ...targetInstruction(payload),
       "Usa esclusivamente fatti e dati forniti dall'operatore. Non inventare nomi, date, esiti, sopralluoghi, norme, provvedimenti o circostanze mancanti.",
       "Se i dati non consentono una formulazione completa, restituisci una frase prudente che segnali all'operatore il dato mancante senza colmarlo.",
       "Distingui sempre tra fatti estratti dal documento e accertamenti confermati dall'operatore.",

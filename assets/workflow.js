@@ -41,6 +41,47 @@ window.ADMIN3 = (() => {
     sessionId: newSessionId(),
   };
 
+  // ---- Aiutanti del Revisore ----
+  // Il Revisore e' la sola parte del sistema che non inventa mai: quando segnala
+  // qualcosa, quel qualcosa c'e'. Per questo conviene farlo crescere invece di
+  // allungare i prompt. Le regole qui sotto guardano il merito, non la forma.
+  function datiModulo(s) {
+    const d = s.moduleData && s.module ? s.moduleData[s.module] : null;
+    return d && typeof d === "object" ? d : {};
+  }
+  function tuttoIlTestoNoto(s) {
+    const pezzi = [JSON.stringify(s.practice || {}), JSON.stringify(datiModulo(s))];
+    if (s.extraction) pezzi.push(JSON.stringify(s.extraction));
+    // Solo cifre: cosi' 04.09.2026 e 4/9/26 si confrontano fra loro. Concatenare
+    // puo' produrre qualche corrispondenza di troppo, ed e' la direzione giusta
+    // in cui sbagliare: un revisore che segnala il falso viene ignorato.
+    return pezzi.join(" ").replace(/\D/g, "");
+  }
+  function aData(valore) {
+    const m = String(valore || "").trim().match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2}|\d{4})$/);
+    if (!m) return null;
+    const giorno = Number(m[1]), mese = Number(m[2]);
+    const anno = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+    if (giorno < 1 || giorno > 31 || mese < 1 || mese > 12) return null;
+    const d = new Date(anno, mese - 1, giorno);
+    return d.getDate() === giorno && d.getMonth() === mese - 1 ? d : null;
+  }
+  function campiData(s) {
+    const d = datiModulo(s), fuori = [];
+    Object.keys(d).forEach(function (id) {
+      if (!/^data/i.test(id)) return;
+      const valore = aData(d[id]);
+      if (valore) fuori.push({ id: id, data: valore });
+    });
+    return fuori;
+  }
+  function agentiSelezionati(s) {
+    const d = datiModulo(s);
+    return ["ag1", "ag2", "ag3", "ag4"]
+      .map(function (id) { return String(d[id] || "").trim(); })
+      .filter(function (v) { return v && v !== "--"; });
+  }
+
   const RULES = {
     common: [
       { id: "missing_subject", label: "Oggetto/denominazione mancante", test: (s) => !s.practice.subject.trim() },
@@ -49,6 +90,67 @@ window.ADMIN3 = (() => {
       { id: "placeholder", label: "Sono presenti segnaposto non sostituiti", test: (s) => /\b(TESTO_|PLACEHOLDER|{{[^}]+}})\b/i.test(s.draft || "") },
       { id: "markdown", label: "Il testo contiene marcatori Markdown o asterischi", test: (s) => /(^|\s)\*{1,3}\S|(^|\n)\s*[-*]\s+/m.test(s.draft || "") },
       { id: "empty_draft", label: "Testo del documento non ancora predisposto", test: (s) => !(s.draft || "").trim() },
+      { id: "future_date", label: "Una data è successiva a oggi", test: (s) => {
+          const oggi = new Date(); oggi.setHours(23, 59, 59, 999);
+          return campiData(s).some((c) => c.data > oggi);
+        } },
+      { id: "accertamento_dopo_risposta", label: "La data dell'accertamento è successiva alla data di risposta", test: (s) => {
+          const campi = campiData(s);
+          const acc = campi.find((c) => /^dataAcc/i.test(c.id));
+          const ris = campi.find((c) => /^dataR$/i.test(c.id));
+          return Boolean(acc && ris && acc.data > ris.data);
+        } },
+      { id: "pg_format", label: "Un numero di PG non è nel formato atteso", test: (s) => {
+          const d = datiModulo(s);
+          return Object.keys(d).some(function (id) {
+            if (!/^pg/i.test(id)) return false;
+            const v = String(d[id] || "").trim();
+            return Boolean(v) && !/^(PG\/\d{4}\/)?\d+$/i.test(v);
+          });
+        } },
+      { id: "duplicate_agents", label: "Lo stesso agente è selezionato più volte", test: (s) => {
+          const a = agentiSelezionati(s);
+          return new Set(a).size !== a.length;
+        } },
+      { id: "date_inventate", label: "Il testo cita una data che non compare in nessun campo", test: (s) => {
+          // Segnala solo le date: sono il caso in cui un valore inventato passa
+          // inosservato piu' facilmente, e i falsi allarmi sono rari.
+          const testo = s.draft || "";
+          const noto = tuttoIlTestoNoto(s);
+          const trovate = testo.match(/\b(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})\b/g) || [];
+          return trovate.some(function (d) {
+            const parti = d.split(/[./-]/);
+            const gg = ("0" + parti[0]).slice(-2), mm = ("0" + parti[1]).slice(-2);
+            const anno = parti[2].length === 2 ? "20" + parti[2] : parti[2];
+            const candidati = [gg + mm + anno, gg + mm + anno.slice(-2)];
+            return !candidati.some(function (c) { return noto.indexOf(c) >= 0; });
+          });
+        } },
+      { id: "esito_contraddetto", label: "L'esito selezionato e il testo si contraddicono", test: (s) => {
+          const esito = String(datiModulo(s).esito || "").trim().toLowerCase();
+          const testo = (s.draft || "").toLowerCase();
+          if (!esito || !testo) return false;
+          // La negazione in italiano non sta sempre attaccata: "non conforme",
+          // ma anche "non risulta conforme", "non e' conforme". Per ogni
+          // occorrenza di "conform" si guarda se un "non" la governa nella
+          // stessa proposizione.
+          const negate = [];
+          const re = /conform/gi;
+          let m;
+          while ((m = re.exec(testo)) !== null) {
+            const prima = testo.slice(Math.max(0, m.index - 40), m.index);
+            negate.push(/\bnon\b[^.;:]*$/.test(prima));
+          }
+          if (!negate.length) return false;
+          const cInegate = negate.some(function (x) { return x; });
+          const cIafferma = negate.some(function (x) { return !x; });
+          // I moduli non usano lo stesso alfabeto: "c" ovunque per conforme,
+          // ma "n"/"p" nelle ricettive e "nc" altrove per il resto.
+          const negativo = esito === "nc" || esito === "n" || esito === "p";
+          if (esito === "c" && cInegate) return true;
+          if (negativo && cIafferma && !cInegate) return true;
+          return false;
+        } },
     ],
   };
 
@@ -73,7 +175,6 @@ window.ADMIN3 = (() => {
       if (isRecord(saved)) {
         state.module = MODULES.includes(saved.module) ? saved.module : null;
         state.practice = { ...EMPTY_PRACTICE, ...(isRecord(saved.practice) ? saved.practice : {}) };
-        state.practice.date = normDate(state.practice.date);
         state.extraction = isRecord(saved.extraction) ? saved.extraction : null;
         state.classification = isRecord(saved.classification) ? saved.classification : null;
         state.moduleData = isRecord(saved.moduleData) ? saved.moduleData : {};
@@ -178,26 +279,6 @@ window.ADMIN3 = (() => {
     return clean;
   }
 
-  const MESI_IT = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
-
-  function normDate(value) {
-    // Le date girano fra Estrattore, pannello e moduli in formato gg.mm.aaaa.
-    // Un formato non riconosciuto si lascia com'è: non si indovina.
-    const text = String(value == null ? "" : value).trim();
-    if (!text) return text;
-    const pad = (n) => (String(n).length < 2 ? "0" + n : String(n));
-    let match = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
-    if (match) return pad(match[3]) + "." + pad(match[2]) + "." + match[1];
-    match = text.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})$/);
-    if (match) return pad(match[1]) + "." + pad(match[2]) + "." + (match[3].length === 2 ? "20" + match[3] : match[3]);
-    match = text.match(/^(\d{1,2})\s+([A-Za-zàèéìòù]+)\s+(\d{4})$/);
-    if (match) {
-      const month = MESI_IT.indexOf(match[2].toLowerCase());
-      if (month >= 0) return pad(match[1]) + "." + pad(month + 1) + "." + match[3];
-    }
-    return text;
-  }
-
   function updateCommonPractice(moduleName, data) {
     const mappings = {
       edili: { id: "praticaId", subject: "richiedente", location: "ubicazione", protocol: "pgR" },
@@ -284,10 +365,7 @@ window.ADMIN3 = (() => {
           routeReason: result.routeReason,
           confirmedModule: moduleName,
         };
-        if (isRecord(result.practice)) {
-          Object.assign(state.practice, result.practice);
-          state.practice.date = normDate(state.practice.date);
-        }
+        if (isRecord(result.practice)) Object.assign(state.practice, result.practice);
       } else {
         state.writer = result;
         if (typeof result.text === "string") state.draft = result.text;
@@ -300,7 +378,7 @@ window.ADMIN3 = (() => {
     }
   });
 
-  return { state, save, load, reset, review, callAgent, hydrateFrame, normDate };
+  return { state, save, load, reset, review, callAgent, hydrateFrame };
 })();
 
 window.ADMIN3.load();

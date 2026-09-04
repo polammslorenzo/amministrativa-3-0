@@ -11,25 +11,64 @@
   const pendingBridgeCalls = new Map();
   const initialValues = new Map();
 
-  function parentTargetOrigin() {
-    // Fuori da file:// i messaggi verso la dashboard restano dentro l'origine
-    // dell'app: practice-update trasporta nomi e indirizzi dei cittadini.
-    try {
-      if (typeof location === "undefined" || !location.origin) return "*";
-      return location.protocol === "file:" ? "*" : location.origin;
-    } catch (_error) {
-      return "*";
-    }
-  }
-
-  function captureInitialValues() {
-    // Si fotografa dopo il precaricamento del modulo, non al caricamento di questo
-    // script: initOperationalEnhancements riempie le date su DOMContentLoaded e
-    // altrimenti "Nuova pratica" le lascerebbe bianche invece di riportarle a oggi.
-    if (initialValues.size || !document.querySelectorAll) return;
+  function snapshotInitialValues() {
+    // Va eseguita dopo initOperationalEnhancements del modulo, altrimenti la
+    // fotografia contiene i campi vuoti dell'HTML e "Nuova pratica" cancella
+    // le date precompilate invece di riportarle a oggi.
+    if (!document.querySelectorAll) return;
+    initialValues.clear();
     document.querySelectorAll("input[id],select[id],textarea[id]").forEach(function (element) {
       if (element.type !== "file") initialValues.set(element.id, element.value);
     });
+  }
+
+
+  // ---- Fascicolo unico: lettera di trasmissione + relazione in un solo .docx ----
+  // I modelli dei quattro moduli condividono testata, pie', stili, numerazione e
+  // impostazione di sezione: basta concatenare i corpi con un salto pagina, senza
+  // toccare relazioni, media o intestazioni. La numerazione "Pag. X di Y" scorre
+  // sull'intero fascicolo, che e' il comportamento giusto per un atto unico.
+  window.uniscoCorpiDocx = function (xmlLettera, xmlRelazione) {
+    const APRI = "<w:body>";
+    function corpo(x) {
+      const i = x.indexOf(APRI);
+      const j = x.lastIndexOf("<w:sectPr");
+      if (i === -1 || j === -1 || j < i) return null;
+      return x.slice(i + APRI.length, j);
+    }
+    const testa = xmlLettera.slice(0, xmlLettera.indexOf(APRI) + APRI.length);
+    const coda = xmlLettera.slice(xmlLettera.lastIndexOf("<w:sectPr"));
+    const a = corpo(xmlLettera), b = corpo(xmlRelazione);
+    // Se un modello non ha la forma attesa non si inventa niente: si torna ai due file.
+    if (a === null || b === null) return null;
+    const saltoPagina = '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+    return testa + a + saltoPagina + b + coda;
+  };
+
+  // ---- Nome del file: pg_2026_123456_ric_oggetto.docx ----
+  window.nomeFilePratica = function (pg, fattispecie, oggetto) {
+    const numero = String(pg || "")
+      .replace(/^\s*PG\s*\//i, "")
+      .replace(/[^0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    const parti = numero ? ["pg", numero] : ["senza_pg"];
+    parti.push(fattispecie);
+    const ogg = String(oggetto || "")
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^A-Za-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 60);
+    if (ogg) parti.push(ogg);
+    return parti.join("_").replace(/_+/g, "_").toLowerCase();
+  };
+
+  function parentTargetOrigin() {
+    try {
+      if (typeof location === "undefined" || location.protocol === "file:" || !location.origin) return "*";
+      return location.origin;
+    } catch (_error) {
+      return "*";
+    }
   }
 
   function parentAdmin() {
@@ -140,44 +179,12 @@
     return 1;
   }
 
-  const MESI_IT = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
-
-  function normDate(value) {
-    // L'Estrattore legge la data come è scritta sul PDF. I moduli scrivono
-    // gg.mm.aaaa nel documento e riscontro-esposto ricava il giorno in lettere
-    // facendo split("."): una data 12/03/2026 non verrebbe riconosciuta.
-    // Un formato non riconosciuto si lascia com'è: non si indovina.
-    const text = String(value == null ? "" : value).trim();
-    if (!text) return text;
-    const pad = (n) => (String(n).length < 2 ? "0" + n : String(n));
-    let match = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
-    if (match) return pad(match[3]) + "." + pad(match[2]) + "." + match[1];
-    match = text.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})$/);
-    if (match) return pad(match[1]) + "." + pad(match[2]) + "." + (match[3].length === 2 ? "20" + match[3] : match[3]);
-    match = text.match(/^(\d{1,2})\s+([A-Za-zàèéìòù]+)\s+(\d{4})$/);
-    if (match) {
-      const month = MESI_IT.indexOf(match[2].toLowerCase());
-      if (month >= 0) return pad(match[1]) + "." + pad(month + 1) + "." + match[3];
-    }
-    return text;
-  }
-
-  function resyncModuleControls(data) {
-    // put() scrive gli input nascosti che pilotano il documento (tpl in Pareri
-    // Edili, esito negli altri) ma non muove i pulsanti né apre le sezioni:
-    // senza questo lo schermo mostra un esito e il .docx ne riporta un altro.
-    if (!data) return;
-    if (typeof data.tpl === "string" && data.tpl && typeof window.setTpl === "function") window.setTpl(data.tpl);
-    if (typeof data.esito === "string" && data.esito && typeof window.setEsito === "function") window.setEsito(data.esito);
-  }
-
   function draftStorageKey() {
     if (typeof window.storageKey === "function") return window.storageKey();
     return "amm20_" + location.pathname.split("/").pop() + "_draft";
   }
 
   function clearModuleState(nextSession) {
-    captureInitialValues();
     try {
       localStorage.removeItem(draftStorageKey());
       localStorage.setItem(MODULE_SESSION_KEY, String(nextSession || ""));
@@ -194,7 +201,35 @@
     if (generated) generated.style.display = "none";
     selectedDocument = null;
     window.pdfB64 = null;
-    resyncModuleControls({ tpl: initialValues.get("tpl") || "", esito: initialValues.get("esito") || "" });
+    // Ripristina data, ora e anno di protocollo come a pagina appena aperta.
+    if (typeof window.initOperationalEnhancements === "function") {
+      try { window.initOperationalEnhancements(); } catch (_error) {}
+    }
+    syncHiddenControls();
+  }
+
+  function normalizeDate(value) {
+    // L'Estrattore restituisce la data cosi' come e' scritta nel PDF. Il modello
+    // .docx usa gg.mm.aaaa: senza conversione 12/03/2026 e 2026-03-12 finiscono
+    // indistinguibili nella stessa frase. I documenti sono italiani, quindi
+    // giorno prima del mese. Se il formato non e' riconosciuto il valore resta
+    // intatto e lo corregge l'operatore.
+    const raw = String(value || "").trim();
+    if (!raw) return raw;
+    const iso = raw.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+    if (iso) return pad(iso[3]) + "." + pad(iso[2]) + "." + iso[1];
+    const ita = raw.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})$/);
+    if (ita) {
+      const day = Number(ita[1]), month = Number(ita[2]);
+      if (day < 1 || day > 31 || month < 1 || month > 12) return raw;
+      const year = ita[3].length === 2 ? "20" + ita[3] : ita[3];
+      return pad(ita[1]) + "." + pad(ita[2]) + "." + year;
+    }
+    return raw;
+  }
+
+  function pad(value) {
+    return String(value).padStart(2, "0");
   }
 
   function applyExtractionFields(fields) {
@@ -223,13 +258,13 @@
       count += put("mitt", fields.mittente);
     } else if (current === "sorvegliabilita") {
       count += put("pgRif", fields.pgRif);
-      count += put("dataRif", normDate(fields.dataRif));
+      count += put("dataRif", normalizeDate(fields.dataRif));
       count += put("protSUAP", fields.protSUAP);
       count += put("via", fields.via);
       count += put("tit", fields.titolare);
     } else if (current === "ricettive") {
       count += put("pgRif", fields.pgRif);
-      count += put("dataRif", normDate(fields.dataRif));
+      count += put("dataRif", normalizeDate(fields.dataRif));
       count += put("protSUAP", fields.protSUAP);
       count += put("via", fields.via);
       count += put("tit", fields.titolare);
@@ -238,14 +273,65 @@
     return count;
   }
 
+  function syncHiddenControls() {
+    // I campi nascosti tpl/esito pilotano pulsanti e sezioni visibili: put()
+    // scrive il valore ma non aggiorna l'interfaccia, quindi lo schermo e il
+    // documento generato possono divergere.
+    const tpl = document.getElementById("tpl");
+    if (tpl && tpl.value && typeof window.setTpl === "function") window.setTpl(tpl.value);
+    const esito = document.getElementById("esito");
+    if (esito && esito.value && typeof window.setEsito === "function") window.setEsito(esito.value);
+  }
+
+  // Il Redattore chiamato dal modulo riceveva solo la bozza, mentre chiamato
+  // dalla dashboard riceveva pratica, estrazione e dati del modulo. Stesso
+  // agente, stesse istruzioni, ma nel secondo caso cieco. Qui il contesto viene
+  // conservato all'idratazione e rispedito insieme alla richiesta.
+  let contestoPratica = { practice: {}, extraction: null };
+
   function applyHydration(message) {
+    if (message.practice && typeof message.practice === "object") contestoPratica.practice = message.practice;
+    if (message.extraction && typeof message.extraction === "object") contestoPratica.extraction = message.extraction;
     if (message.freshPractice) clearModuleState(message.practiceSession || "");
     try { localStorage.setItem(MODULE_SESSION_KEY, String(message.practiceSession || "")); } catch (_error) {}
     const moduleData = message.moduleData && typeof message.moduleData === "object" ? message.moduleData : {};
     Object.keys(moduleData).forEach(function (id) { put(id, moduleData[id]); });
-    resyncModuleControls(moduleData);
     if (message.extraction && message.extraction.fields) applyExtractionFields(message.extraction.fields);
+    syncHiddenControls();
     schedulePracticeUpdate();
+  }
+
+  function etichettaDi(element) {
+    // Il modello riceveva "tit", "pgR", "destU" e doveva indovinare cosa fossero.
+    // Le etichette sono gia' scritte nella maschera: si riusano.
+    try {
+      if (element.id && document.querySelector) {
+        const perId = document.querySelector('label[for="' + element.id + '"]');
+        if (perId && perId.textContent.trim()) return perId.textContent.trim();
+      }
+      const contenitore = element.closest ? element.closest(".f") : null;
+      if (contenitore) {
+        const etichetta = contenitore.querySelector("label");
+        if (etichetta && etichetta.textContent.trim()) return etichetta.textContent.trim();
+      }
+      const prima = element.previousElementSibling;
+      if (prima && prima.tagName === "LABEL" && prima.textContent.trim()) return prima.textContent.trim();
+    } catch (_error) {}
+    return "";
+  }
+
+  function datiEtichettati() {
+    const fuori = {};
+    if (!document.querySelectorAll) return fuori;
+    document.querySelectorAll("input[id],select[id],textarea[id]").forEach(function (element) {
+      if (element.type === "file") return;
+      const valore = String(element.value || "").trim();
+      if (!valore || valore === "--") return;
+      if (valore.length > 4000) return; // niente blocchi enormi verso il modello
+      const etichetta = etichettaDi(element);
+      fuori[etichetta ? etichetta + " (" + element.id + ")" : element.id] = valore;
+    });
+    return fuori;
   }
 
   function collectModuleData() {
@@ -349,7 +435,14 @@
   }
 
   async function write(payload) {
-    const result = await callDashboardAgent("writer", payload);
+    const completo = Object.assign({
+      mode: "draft",
+      practice: contestoPratica.practice,
+      extraction: contestoPratica.extraction,
+      moduleData: datiEtichettati(),
+      currentDraft: "",
+    }, payload);
+    const result = await callDashboardAgent("writer", completo);
     if (!result || !result.text) throw new Error("Il Redattore non ha restituito testo.");
     return cleanText(result.text);
   }
@@ -412,7 +505,15 @@
       setBusy("bGenTesto", "Elaborazione...", true);
       notify("L", "Formalizzazione protetta del testo...");
       try {
-        const text = await write({ draft: draft, context: context });
+        const text = await write({
+          draft: draft,
+          context: context,
+          target: {
+            campo: "Testo del parere",
+            descrizione: "Il corpo del parere edilizio, che entra nel modello sotto l'intestazione gia' presente. Niente intestazione, niente destinatario, niente firma.",
+            righe: "da 4 a 10 righe",
+          },
+        });
         put("testoGen", text);
         put("accertato", text);
         document.getElementById("genbox").style.display = "block";
@@ -452,6 +553,11 @@
         const text = await write({
           draft: notes,
           context: { motivoNonConformita: value("motivoNC") },
+          target: {
+            campo: "Motivo della non conformita'",
+            descrizione: "Un solo paragrafo che entra nel verbale di sorvegliabilita' sotto la voce dei motivi di non conformita'. Non e' una lettera: niente intestazione, niente destinatario, niente formula di chiusura, niente firma.",
+            righe: "da 2 a 5 righe",
+          },
         });
         put("testoNC", text);
         document.getElementById("genbox").style.display = "block";
@@ -488,7 +594,14 @@
       setBusy("bGenNC", "Generazione...", true);
       notify("L", "Formalizzazione protetta del motivo...");
       try {
-        const text = await write({ draft: notes });
+        const text = await write({
+          draft: notes,
+          target: {
+            campo: "Accertamento",
+            descrizione: "Un solo paragrafo che entra nella relazione fra la formula 'hanno accertato quanto segue' e la formula 'adottando i seguenti provvedimenti'. Non e' una lettera: niente intestazione, niente destinatario, niente formula di chiusura, niente firma, niente elenco di provvedimenti.",
+            righe: "da 3 a 6 righe",
+          },
+        });
         put("testoNC", text);
         document.getElementById("genbox").style.display = "block";
         notify("O", "Motivo formalizzato — verifica tutti i fatti");
@@ -513,7 +626,7 @@
   }
 
   function wireStateSync() {
-    captureInitialValues();
+    snapshotInitialValues();
     if (document.querySelectorAll) {
       document.querySelectorAll("input,select,textarea").forEach(function (element) {
         element.addEventListener("input", schedulePracticeUpdate);

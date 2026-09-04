@@ -102,7 +102,7 @@ main{display:grid;grid-template-rows:auto 1fr;min-width:0}.topbar{display:flex;a
     <div class="field"><label>Oggetto / denominazione</label><input id="wfSubject"></div>
     <div class="field"><label>Ubicazione</label><input id="wfLocation"></div>
     <div class="field"><label>Protocollo</label><input id="wfProtocol"></div>
-    <div class="field"><label>Data della pratica (GG.MM.AAAA)</label><input id="wfDate" placeholder="es. 04.03.2026"></div>
+    <div class="field"><label>Data della pratica</label><input id="wfDate" placeholder="gg.mm.aaaa"></div>
     <button class="btn" id="savePractice" type="button">Salva correzioni</button>
   </div>
 
@@ -175,7 +175,7 @@ main{display:grid;grid-template-rows:auto 1fr;min-width:0}.topbar{display:flex;a
     A.state.practice.subject=$("wfSubject").value.trim();
     A.state.practice.location=$("wfLocation").value.trim();
     A.state.practice.protocol=$("wfProtocol").value.trim();
-    A.state.practice.date=A.normDate($("wfDate").value);
+    A.state.practice.date=$("wfDate").value.trim();
     A.state.practice.notes=$("operatorNotes").value.trim();
     A.state.draft=$("wfDraft").value;
     A.save();syncUI();
@@ -266,7 +266,7 @@ main{display:grid;grid-template-rows:auto 1fr;min-width:0}.topbar{display:flex;a
       const result=await A.callAgent("extractor",{document:documentData,practice:{}},"auto");
       A.state.extraction=result;
       A.state.classification={suggestedModule:result.module,confidence:result.confidence,routeReason:result.routeReason,confirmedModule:null};
-      if(result.practice&&typeof result.practice==="object"){Object.assign(A.state.practice,result.practice);A.state.practice.date=A.normDate(A.state.practice.date);}
+      if(result.practice&&typeof result.practice==="object")Object.assign(A.state.practice,result.practice);
       A.state.status="extracted";A.save();syncUI();
     }catch(error){alert(error.message);}
     finally{$("analyzeButton").disabled=false;$("analysisBusy").classList.remove("show");}
