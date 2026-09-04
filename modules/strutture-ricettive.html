@@ -642,7 +642,8 @@ async function polishDocxStyles(zip){
 }
 
 </script>
-<script src="../assets/module-ai-bridge.js">
+<script src="../assets/module-ai-bridge.js"></script>
+<script>
 // ===== Motore PEC (ripreso da Pareri Suolo Pubblico v6.0) =====
 var pecOn = false;
 function togPec(){
@@ -684,7 +685,7 @@ function generaTestoPec(){
   var corpo='In riferimento alla pratica';
   if(prot)corpo+=' - Prot. SUAP '+prot;
   if(pgr)corpo+=' - PG '+pgr;
-  corpo+=', si trasmette in allegato la nota di trasmissione e l'accertamento svolto presso la struttura ricettiva';
+  corpo+=', si trasmette in allegato la nota di trasmissione e l\'accertamento svolto presso la struttura ricettiva';
   if(sog)corpo+=' relativo a '+sog;
   if(lg)corpo+=' sito in '+lg;
   corpo+='.\n\nSi resta a disposizione per gli eventuali ulteriori adempimenti di competenza.\n\n'+_firmaPec();
