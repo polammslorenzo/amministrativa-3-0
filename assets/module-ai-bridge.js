@@ -625,8 +625,66 @@
     }, parentTargetOrigin());
   }
 
+  // Sezioni richiudibili: il titolo di ogni .sec diventa un comando. Le sezioni
+  // partono tutte aperte, cosi nessun dato resta nascosto senza che l'operatore
+  // lo abbia deciso; chi compila richiude quelle che ha finito.
+  function initSezioniRichiudibili() {
+    if (!document.querySelectorAll) return;
+    document.querySelectorAll(".sec").forEach(function (sezione) {
+      var titolo = sezione.querySelector(".sh");
+      if (!titolo || titolo.parentNode !== sezione || titolo.dataset.pieghevole) return;
+      titolo.dataset.pieghevole = "1";
+      titolo.style.cursor = "pointer";
+      titolo.style.userSelect = "none";
+      // I moduli non danno tutti display:flex a .sh: lo impongo qui, altrimenti
+      // la freccia non si stacca dal testo e resta appiccicata al titolo.
+      titolo.style.display = "flex";
+      titolo.style.alignItems = "center";
+      titolo.setAttribute("role", "button");
+      titolo.setAttribute("tabindex", "0");
+      titolo.setAttribute("aria-expanded", "true");
+
+      var freccia = document.createElement("span");
+      freccia.textContent = "\u25BE";
+      freccia.setAttribute("aria-hidden", "true");
+      // I moduli disegnano la linea di sezione con .sh::after {flex:1}, che occupa
+      // tutto lo spazio libero: senza order la freccia resterebbe incollata al testo.
+      freccia.style.cssText = "order:1;margin-left:auto;padding-left:10px;font-size:13px;line-height:1;opacity:.8;transition:transform .15s";
+      titolo.appendChild(freccia);
+
+      // Conservo il display originale: alcune sezioni hanno figli gia nascosti
+      // da un interruttore (lettera di trasmissione, testo PEC) che non va forzato.
+      var corpo = [];
+      for (var i = 0; i < sezione.children.length; i++) {
+        var figlio = sezione.children[i];
+        if (figlio === titolo) continue;
+        figlio.dataset.displayOriginale = figlio.style.display || "";
+        corpo.push(figlio);
+      }
+      if (!corpo.length) return;
+
+      function commuta() {
+        var chiuso = titolo.dataset.chiuso === "1";
+        titolo.dataset.chiuso = chiuso ? "0" : "1";
+        titolo.setAttribute("aria-expanded", chiuso ? "true" : "false");
+        freccia.style.transform = chiuso ? "" : "rotate(-90deg)";
+        corpo.forEach(function (figlio) {
+          figlio.style.display = chiuso ? figlio.dataset.displayOriginale : "none";
+        });
+      }
+      titolo.addEventListener("click", commuta);
+      titolo.addEventListener("keydown", function (evento) {
+        if (evento.key === "Enter" || evento.key === " ") {
+          evento.preventDefault();
+          commuta();
+        }
+      });
+    });
+  }
+
   function wireStateSync() {
     snapshotInitialValues();
+    initSezioniRichiudibili();
     if (document.querySelectorAll) {
       document.querySelectorAll("input,select,textarea").forEach(function (element) {
         element.addEventListener("input", schedulePracticeUpdate);
