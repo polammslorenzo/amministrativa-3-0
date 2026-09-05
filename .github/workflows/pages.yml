@@ -25,11 +25,11 @@ jobs:
         with:
           node-version: lts/*
       - name: Test
-        # I due file sono elencati apposta uno per uno. NON usare un comando che
+        # I file sono elencati apposta uno per uno. NON usare un comando che
         # esegue tutta la cartella tests/: dentro c'e' anche live-agent.test.mjs,
         # che chiama davvero l'API OpenAI. Su GitHub fallirebbe per assenza di
         # chiave, e dove la chiave c'e' consumerebbe credito a ogni push.
-        run: node --test tests/agent.test.mjs tests/frontend-bridge.test.mjs
+        run: node --test tests/agent.test.mjs tests/frontend-bridge.test.mjs tests/moduli-html.test.mjs
       - name: Scansione segreti
         run: node scripts/secret-scan.mjs
 
