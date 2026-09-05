@@ -104,6 +104,12 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
       </div>
     </div>
     <div class="sec"><div class="sh">Riferimenti SUAP</div>
+      <div class="f" style="margin-bottom:10px"><label>La richiesta è arrivata tramite</label>
+        <select id="tipoRif" onchange="aggiornaTipoRif()">
+          <option value="pg">Protocollo — indico il numero di PG</option>
+          <option value="pec">PEC — indico soltanto la data</option>
+        </select>
+      </div>
       <div class="g3">
         <div class="f"><label>N. PG Rif.<span class="ai">AI</span></label><input id="pgRif" placeholder="es. 188193"></div>
         <div class="f"><label>Data rif. (GG.MM.AAAA)<span class="ai">AI</span></label><input id="dataRif"></div>
@@ -360,7 +366,7 @@ async function genera(){
     xml=rf(xml,'PG/2026/240448',pg);
     xml=xml.split('<w:t>   del   23.02.26</w:t>').join('<w:t>   del   '+xe(dataR)+'</w:t>');
     xml=xml.split('<w:t xml:space="preserve">   del   23.02.26</w:t>').join('<w:t xml:space="preserve">   del   '+xe(dataR)+'</w:t>');
-    xml=rf(xml,'PG/2026/188193 del 10.02.2026','PG/'+protocolYear()+'/'+pgRif+' del '+dataRif);
+    xml=rf(xml,'PG/2026/188193 del 10.02.2026',riferimentoRichiesta());
     xml=rf(xml,'1184130/2025',protSUAP);
     xml=rf(xml,'VIA LORENZO GIUSTINIANI 40',via);
     xml=rf(xml,'PASTORE LUIGI — Affittacamere &quot;IL BORGO&quot;',tit+' — '+tipoStruttura+' «'+nomeStruttura+'»');
@@ -402,7 +408,7 @@ async function genera(){
       xmlL=rf(xmlL,'PG/2026/375181',pg);
       xmlL=xmlL.split('<w:t>   del   28/03/26</w:t>').join('<w:t>   del   '+xe(dataI)+'</w:t>');
       xmlL=xmlL.split('<w:t xml:space="preserve">   del   28/03/26</w:t>').join('<w:t xml:space="preserve">   del   '+xe(dataI)+'</w:t>');
-      xmlL=rf(xmlL,'PG/2026/301627',pgI?'PG/'+protocolYear()+'/'+pgI:'PG/'+protocolYear()+'/'+pgRif);
+      xmlL=rf(xmlL,'PG/2026/301627',pgI?'PG/'+protocolYear()+'/'+pgI:riferimentoRichiestaBreve());
       xmlL=rf(xmlL,'c_f839/Comune_di_Napoli 1176287/17-12-2025',protSUAP||'');
       xmlL=rf(xmlL,'Trasmissione atti — CONTROLLO POSTEGGIO MERCATO CARAMANICO','Trasmissione atti — ACCERTAMENTO STRUTTURA RICETTIVA - '+nomeStruttura);
       xmlL=rf(xmlL,'CRISTIANO VINCENZO',utente);
@@ -448,6 +454,29 @@ async function genera(){
 var APP_VERSION='3.4 - titoli trasmissione a sinistra';
 var MAX_FILE_MB=12;
 function pgYearOf(raw){var m=String(raw||'').match(/^\s*PG\/(\d{4})\//i);return m?m[1]:protocolYear();}
+function tipoRif(){var e=document.getElementById('tipoRif');return e?e.value:'pg';}
+function aggiornaTipoRif(){
+  var pec=tipoRif()==='pec', c=document.getElementById('pgRif');
+  if(!c)return;
+  c.disabled=pec; c.style.opacity=pec?'0.45':'';
+  c.placeholder=pec?'non serve con la PEC':'es. 188193';
+  if(pec)c.value='';
+}
+// Riferimento alla richiesta: numero di PG oppure rinvio alla PEC, a scelta in compilazione.
+function riferimentoRichiesta(){
+  var pgRif=((document.getElementById('pgRif')||{}).value||'').trim();
+  var dataRif=((document.getElementById('dataRif')||{}).value||'').trim();
+  if(tipoRif()==='pec')return dataRif?('rif. PEC del '+dataRif):'rif. PEC';
+  if(!pgRif)return '';
+  var r='PG/'+protocolYear()+'/'+pgRif;
+  return dataRif?(r+' del '+dataRif):r;
+}
+function riferimentoRichiestaBreve(){
+  var pgRif=((document.getElementById('pgRif')||{}).value||'').trim();
+  var dataRif=((document.getElementById('dataRif')||{}).value||'').trim();
+  if(tipoRif()==='pec')return dataRif?('rif. PEC del '+dataRif):'rif. PEC';
+  return pgRif?('PG/'+protocolYear()+'/'+pgRif):'';
+}
 function protocolYear(){var e=document.getElementById('annoProt');return e&&/^\d{4}$/.test(e.value)?e.value:String(new Date().getFullYear());}
 function formatDateExt(d){var m=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];return d.getDate()+' '+m[d.getMonth()]+' '+d.getFullYear();}
 function initOperationalEnhancements(){
@@ -684,7 +713,7 @@ function generaTestoPec(){
   var prot=_pecV('protSUAP'), sog=_pecV('nomeStruttura'), lg=_pecV('via'), pgr=_pecV('pgRif');
   var corpo='In riferimento alla pratica';
   if(prot)corpo+=' - Prot. SUAP '+prot;
-  if(pgr)corpo+=' - PG '+pgr;
+  var rif=riferimentoRichiestaBreve(); if(rif)corpo+=' - '+rif;
   corpo+=', si trasmette in allegato la nota di trasmissione e l\'accertamento svolto presso la struttura ricettiva';
   if(sog)corpo+=' relativo a '+sog;
   if(lg)corpo+=' sito in '+lg;
