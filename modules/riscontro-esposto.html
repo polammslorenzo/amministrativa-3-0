@@ -485,7 +485,18 @@ function _styleParagraph(p,opt){
   return p;
 }
 function _styleParaByText(xml,text,opt){
-  return xml.replace(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g,function(p){return _xmlPlain(p).indexOf(text)>=0?_styleParagraph(p,opt):p;});
+  return xml.replace(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g,function(p){
+    var piano=_xmlPlain(p);
+    if(piano.indexOf(text)<0)return p;
+    // L'oggetto della lettera di trasmissione contiene il titolo dell'atto:
+    // "Trasmissione atti - PARERE OCCUPAZIONI SUOLO PUBBLICO - ...". Cosi' i
+    // matcher dei titoli ("PARERE", "SORVEGLIABIL", "STRUTTURA RICETTIVA")
+    // rivendicavano anche lui e lo ricentravano, annullando l'allineamento a
+    // sinistra impostato poco prima. Quel paragrafo appartiene alla sua regola
+    // e a nessun'altra.
+    if(text!=='Trasmissione atti'&&piano.indexOf('Trasmissione atti')>=0)return p;
+    return _styleParagraph(p,opt);
+  });
 }
 
 function _normalizeHeadingText(s){return String(s||'').replace(/\s+/g,' ').trim().toUpperCase();}
