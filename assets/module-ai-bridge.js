@@ -598,8 +598,8 @@
           draft: notes,
           target: {
             campo: "Accertamento",
-            descrizione: "Un solo paragrafo che entra nella relazione fra la formula 'hanno accertato quanto segue' e la formula 'adottando i seguenti provvedimenti'. Non e' una lettera: niente intestazione, niente destinatario, niente formula di chiusura, niente firma, niente elenco di provvedimenti.",
-            righe: "da 3 a 6 righe",
+            descrizione: "Descrivi direttamente i fatti accertati, senza ripetere data, ora, indirizzo e anagrafica già presenti nella relazione. Non aggiungere formule come 'A seguito dei controlli' o 'si riscontrava la seguente non conformità'. Una sola criticità in prosa; più criticità in un elenco. Se le note contengono una richiesta agli uffici, riportala in un paragrafo distinto. Non inventare fatti, norme, provvedimenti o conformità dei restanti aspetti. Conserva dettagli rilevanti e riserve sull'applicabilità delle norme. Niente intestazione, destinatari, firma o esito generale.",
+            righe: "Quanto necessario a riportare i fatti senza ripetizioni",
           },
         });
         put("testoNC", text);
