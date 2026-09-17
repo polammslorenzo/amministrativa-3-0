@@ -160,7 +160,8 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
           </div>
         </div>
       </div>
-      <div class="f"><label>Provvedimenti adottati / atti redatti</label><textarea id="prov" rows="2">redatta scheda di ispezione</textarea></div>
+      <div class="f" style="margin-bottom:12px"><label>Seguito richiesto agli uffici competenti (facoltativo)</label><textarea id="seguitoRic" rows="3" placeholder="Indica destinatario e verifiche richieste. Riporta riferimenti normativi soltanto se verificati."></textarea></div>
+      <div class="f"><label>Atti redatti e segnalazioni effettuate</label><textarea id="prov" rows="2">redatta scheda di ispezione</textarea></div>
     </div>
     <div class="sec"><div class="sh">Agenti</div>
       <div class="g2">
@@ -269,11 +270,15 @@ function manuale(){ apriForm(); document.getElementById('msg').style.display='no
 function reset(){ document.getElementById('up').style.display='block'; document.getElementById('form').style.display='none'; document.getElementById('msg').style.display='none'; document.getElementById('fi').value=''; }
 function setEsito(v){
   if(!['c','p','n'].includes(v))v='c';
+  if(document.getElementById('esito').value!==v){
+    document.getElementById('accComposto').value='';
+    document.getElementById('testoNC').value='';
+  }
   document.getElementById('esito').value=v;
   document.getElementById('bOk').className='be'+(v==='c'?' ok':'');
   document.getElementById('bParz').className='be'+(v==='p'?' ok':'');
   document.getElementById('bNo').className='be'+(v==='n'?' no':'');
-  document.getElementById('ncRow').style.display=v==='c'?'none':'block';
+  document.getElementById('ncRow').style.display='block';
 }
 function togLettera(){
   letteraOn=!letteraOn;
@@ -320,6 +325,14 @@ function rf(xml,o,n){
   return xml;
 }
 
+function replaceOutcomeRic(xml,label){
+  return xml.replace(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g,function(p){
+    var plain=_xmlDecodeText((p.match(/<w:t(?:\s[^>]*)?>[\s\S]*?<\/w:t>/g)||[]).join('').replace(/<[^>]+>/g,'')).trim();
+    if(!/^(?:(?:NON\s+)*CONFORME|IRREGOLARITÀ PARZIALI|REGOLARE CON IRREGOLARITÀ PARZIALI)$/.test(plain))return p;
+    return _replaceAcrossWordRuns(p,plain,label);
+  });
+}
+
 async function genera(){
   var esito=document.getElementById('esito').value;
   if(!validateRequired(['pgR','dataR','via','nomeStruttura','tit','dataAcc','ora','prov']))return;
@@ -328,18 +341,13 @@ async function genera(){
   var composto=(document.getElementById('accComposto')||{}).value==='1'
     && (document.getElementById('testoNC')||{}).value.trim();
   if(!composto&&(esito==='n'||esito==='p')&&!motivo){mostraMsg('E','Inserisci il motivo dell’irregolarità o della non conformità');return;}
-  if(composto){
-    // Il testo viene dalla checklist: si usa integralmente, non lo si riavvolge.
-    testoNC=document.getElementById('testoNC').value.trim();
-  }else if(esito==='c'){
-    testoNC='A seguito dei controlli effettuati dagli scriventi si è accertato che la struttura risultava conforme a quanto dichiarato nella SCIA presentata e agli obblighi oggetto di verifica.';
-  }else if(esito==='p'){
-    motivo=motivo.replace(/[.\s]+$/,'');
-    testoNC='A seguito dei controlli effettuati dagli scriventi si riscontrava la seguente irregolarità: '+motivo+'. Per quanto attiene ai restanti aspetti oggetto di verifica, l’attività risultava conforme a quanto previsto dalla normativa vigente.';
+  if(composto || esito==='p' || esito==='n'){
+    testoNC=motivo;
   }else{
-    motivo=motivo.replace(/[.\s]+$/,'');
-    testoNC='A seguito dei controlli effettuati dagli scriventi si riscontrava la seguente non conformità: '+motivo+'.';
+    mostraMsg('E','Componi il testo dalle verifiche effettivamente svolte prima di generare la relazione.');return;
   }
+  var seguito=document.getElementById('seguitoRic').value.trim();
+  if(seguito)testoNC+='\n\n'+seguito;
   var btn=document.getElementById('bGen');btn.disabled=true;btn.textContent='Generazione...';
   mostraMsg('L','Creazione DOCX...');
   try{
@@ -371,19 +379,20 @@ async function genera(){
     xml=rf(xml,'VIA LORENZO GIUSTINIANI 40',via);
     xml=rf(xml,'PASTORE LUIGI — Affittacamere &quot;IL BORGO&quot;',tit+' — '+tipoStruttura+' «'+nomeStruttura+'»');
     var introOld='In riferimento all’oggetto, si comunica che in data  alle ore  in Napoli alla  c/o ';
-    var introNew='In riferimento all’oggetto, si comunica che in data '+dataAcc+' alle ore '+ora+' in Napoli alla '+via+' c/o '+nomeStruttura;
+    var introNew='Data e ora del sopralluogo: '+dataAcc+', ore '+ora+'.';
     xml=rf(xml,introOld,introNew);
     xml=rf(xml,'In riferimento all’oggetto, si comunica che in data  alle ore  in Napoli alla  c/o',introNew);
     var sottoOld='I sottoscritti  hanno accertato quanto segue';
-    xml=rf(xml,sottoOld,'I sottoscritti '+ags+' hanno accertato quanto segue');
+    xml=rf(xml,sottoOld,'I sottoscritti '+ags+' hanno accertato quanto segue:');
     xml=rf(xml,'TESTO_ACCERTATO',testoNC);
     xml=removeParagraphContaining(xml,'MOTIVO_PLACEHOLDER');
     xml=rf(xml,'PROVVEDIMENTI_PLACEHOLDER',prov||'redatta scheda di ispezione');
     if(esito==='n'||esito==='p'){
-      xml=rf(xml,'CONFORME',esito==='p'?'IRREGOLARITÀ PARZIALI':'NON CONFORME');
+      xml=replaceOutcomeRic(xml,esito==='p'?'IRREGOLARITÀ PARZIALI':'NON CONFORME');
       xml=xml.replace(/w:fill="EBF5EB"/g,esito==='p'?'w:fill="FFF4CC"':'w:fill="FAEAEA"');
       xml=xml.replace(/w:color w:val="155724"/g,esito==='p'?'w:color w:val="8A5A00"':'w:color w:val="8B0000"');
     }
+    xml=rf(xml,'Provvedimenti adottati:','Atti redatti e segnalazioni effettuate:');
     xml=rf(xml,'////.',prov||'////.');
     xml=rf(xml,'Napoli, li  11 marzo 2026','Napoli, li  '+dataNap);
     xml=rf(xml,'A.C. FERRARA 3015',ags);
@@ -638,8 +647,7 @@ function polishDocumentXml(xml,kind){
   // Evita sottolineature/hyperlink accidentali sui dati sostituiti.
   xml=xml.replace(/<w:u\s+w:val="(?:single|words)"\s*\/>/g,'');
   xml=_removeEmptyAndUnboxHeadingTables(xml,kind);
-  if(kind==='strutture_ricettive') xml=_moveOutcomeTableAfterWriters(xml);
-  else xml=_moveOutcomeHeadingAfterWriters(xml);
+  if(kind!=='strutture_ricettive') xml=_moveOutcomeHeadingAfterWriters(xml);
   // Titolo/oggetto della lettera di trasmissione: allineato a sinistra.
   xml=_styleParaByText(xml,'Trasmissione atti',{size:28,bold:true,left:true,before:0,after:110,keep:true});
   if(kind==='riscontro_esposto'){
@@ -786,6 +794,7 @@ function disegnaChecklist(){
     [['na','— non rilevato'],['c','Conforme'],['nc','Non conforme']].forEach(function(o){
       var op=document.createElement('option'); op.value=o[0]; op.textContent=o[1]; sel.appendChild(op);
     });
+    sel.addEventListener('change',function(){document.getElementById('accComposto').value='';document.getElementById('testoNC').value='';if(typeof saveDraft==='function')saveDraft(false);});
     riga.appendChild(lab); riga.appendChild(sel); box.appendChild(riga);
   });
   box.dataset.pronta='1';
@@ -816,23 +825,25 @@ function componiAccertamento(){
   if(iA>=0&&iT>=0){
     obbOk.splice(Math.max(iA,iT),1); obbOk.splice(Math.min(iA,iT),1,'iscritta ai portali Alloggiati Web e Tourist Tax');
   }
-  if(scia==='na'&&!obbOk.length&&!obbKo.length&&!preOk.length&&!preKo.length){
+  if(scia==='na'&&!obbOk.length&&!obbKo.length&&!preOk.length&&!preKo.length&&!document.getElementById('noteNC').value.trim()){
     mostraMsg('E','Compila almeno una voce delle verifiche svolte'); return;
   }
+  var criticita=[],regolari=[];
+  VOCI_RIC.forEach(function(v){
+    var st=_statoVoce(v.id);
+    if(st==='nc')criticita.push(v.cat==='presenza'?'Non è stata riscontrata la presenza di '+v.ko:'La struttura risulta '+v.ko);
+    if(st==='c')regolari.push(v.cat==='presenza'?'È stata riscontrata la presenza di '+v.ok:'La struttura risulta '+v.ok);
+  });
+  var note=document.getElementById('noteNC').value.trim();
+  if(note)criticita.push(note.replace(/[.\s]+$/,''));
+  var esito=document.getElementById('esito').value;
+  if(esito==='c'&&criticita.length){mostraMsg('E','Sono presenti criticità: seleziona un esito coerente prima di comporre il testo.');return;}
+  if(esito!=='c'&&!criticita.length){mostraMsg('E','Indica almeno una criticità nelle verifiche o nelle note.');return;}
   var righe=[];
-  var apertura='A seguito dei controlli effettuati dagli scriventi si è accertato che la struttura risulta ';
-  if(scia==='c')apertura+='conforme a quanto dichiarato nella SCIA presentata';
-  else if(scia==='nc')apertura+='difforme da quanto dichiarato nella SCIA presentata';
-  else apertura='A seguito dei controlli effettuati dagli scriventi si è accertato quanto segue';
-  // "inoltre" regge solo dopo un'apertura affermativa: se la SCIA e' difforme
-  // o non rilevata, gli obblighi conformi diventano una frase a se'.
-  if(obbOk.length&&scia==='c')apertura+=', inoltre risulta conforme agli obblighi di legge essendo '+_elenca(obbOk);
-  righe.push(apertura+'.');
-  if(obbOk.length&&scia!=='c')righe.push('Risulta conforme agli obblighi di legge essendo '+_elenca(obbOk)+'.');
-  if(obbKo.length)righe.push('La struttura risulta invece '+_elenca(obbKo)+'.');
-  if(preOk.length)righe.push('Nel corso del sopralluogo si è inoltre constatata la presenza di:\n'+_punti(preOk));
-  if(preKo.length)righe.push('Nel corso del sopralluogo non è stata riscontrata la presenza di:\n'+_punti(preKo));
-  var testo=righe.join('\n');
+  if(criticita.length===1)righe.push(criticita[0]+'.');
+  else if(criticita.length)righe.push('Sono state rilevate le seguenti irregolarità:\n'+_punti(criticita));
+  if(regolari.length)righe.push('Per gli aspetti effettivamente verificati:\n'+_punti(regolari));
+  var testo=righe.join('\n\n');
   var t=document.getElementById('testoNC'); if(t)t.value=testo;
   var g=document.getElementById('genbox'); if(g)g.style.display='block';
   var f=document.getElementById('accComposto'); if(f)f.value='1';
