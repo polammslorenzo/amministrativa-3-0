@@ -844,14 +844,39 @@ function componiAccertamento(){
   if(esito==='c'&&criticita.length){mostraMsg('E','Sono presenti criticità: seleziona un esito coerente prima di comporre il testo.');return;}
   if(esito!=='c'&&!criticita.length){mostraMsg('E','Indica almeno una criticità nelle verifiche o nelle note.');return;}
   var righe=[];
-  if(criticita.length===1)righe.push(criticita[0]+'.');
-  else if(criticita.length)righe.push('Sono state rilevate le seguenti irregolarità:\n'+_punti(criticita));
-  if(regolari.length)righe.push('Per gli aspetti effettivamente verificati:\n'+_punti(regolari));
+  if(esito==='p'){
+    var caratteristiche=[],dotazioni=[],mancanze=[];
+    VOCI_RIC.forEach(function(v){
+      var st=_statoVoce(v.id);
+      if(st==='c'){
+        if(v.id==='vLegionella')dotazioni.push('la documentazione di autocontrollo per la prevenzione della legionellosi');
+        else if(v.id==='vEstintore')dotazioni.push('l’estintore regolarmente posizionato e accessibile');
+        else if(v.id==='vCo')dotazioni.push('il rilevatore di monossido di carbonio installato');
+        else caratteristiche.push(v.ok);
+      }
+      if(st==='nc'){
+        if(v.id==='vTourist'||v.id==='vAlloggiati')mancanze.push('Non risultava'+(regolari.length?', invece,':'')+' iscritta al portale '+(v.id==='vTourist'?'Tourist Tax':'Alloggiati Web'));
+        else if(v.cat==='presenza')mancanze.push('Non è stata riscontrata la presenza di '+v.ko);
+        else mancanze.push('La struttura risultava '+v.ko);
+      }
+    });
+    var positivi=[];
+    if(caratteristiche.length)positivi.push('La struttura risultava '+_elenca(caratteristiche)+'.');
+    if(dotazioni.length)positivi.push((dotazioni.length===1?'Risultava presente ':'Risultavano presenti ')+_elenca(dotazioni)+'.');
+    if(positivi.length)righe.push(positivi.join(' '));
+    if(note)mancanze.push(note.replace(/[.\s]+$/,''));
+    if(mancanze.length===1)righe.push(mancanze[0]+'.');
+    else if(mancanze.length)righe.push('Sono state rilevate le seguenti irregolarità:\n'+_punti(mancanze));
+  }else{
+    if(criticita.length===1)righe.push(criticita[0]+'.');
+    else if(criticita.length)righe.push('Sono state rilevate le seguenti irregolarità:\n'+_punti(criticita));
+    if(regolari.length)righe.push('Per gli aspetti effettivamente verificati:\n'+_punti(regolari));
+  }
   var testo=righe.join('\n\n');
   var t=document.getElementById('testoNC'); if(t)t.value=testo;
   var g=document.getElementById('genbox'); if(g)g.style.display='block';
   var f=document.getElementById('accComposto'); if(f)f.value='1';
-  var quanteKo=obbKo.length+preKo.length+(scia==='nc'?1:0);
+  var quanteKo=criticita.length;
   if(typeof saveDraft==='function')saveDraft(false);
   if(quanteKo)mostraMsg('O','Accertamento composto. '+quanteKo+' voce/i non conforme/i: verifica che l\'esito selezionato sia coerente.');
   else mostraMsg('O','Accertamento composto: tutte le voci rilevate risultano conformi.');
