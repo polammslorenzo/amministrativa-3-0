@@ -140,7 +140,7 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
         </div>
         <input type="hidden" id="esito" value="c">
       </div>
-      <div class="f" style="margin-bottom:12px">
+      <div class="f" id="verificheRic" style="margin-bottom:12px;display:none">
         <label>Verifiche svolte</label>
         <div id="checklistRic" style="display:grid;gap:6px"></div>
         <button type="button" class="bai" id="bComponi" onclick="componiAccertamento()" style="margin-top:10px">&#10022; Componi accertamento</button>
@@ -278,7 +278,8 @@ function setEsito(v){
   document.getElementById('bOk').className='be'+(v==='c'?' ok':'');
   document.getElementById('bParz').className='be'+(v==='p'?' ok':'');
   document.getElementById('bNo').className='be'+(v==='n'?' no':'');
-  document.getElementById('ncRow').style.display='block';
+  document.getElementById('ncRow').style.display=v==='c'?'none':'block';
+  document.getElementById('verificheRic').style.display=v==='c'?'none':'block';
 }
 function togLettera(){
   letteraOn=!letteraOn;
@@ -341,13 +342,13 @@ async function genera(){
   var composto=(document.getElementById('accComposto')||{}).value==='1'
     && (document.getElementById('testoNC')||{}).value.trim();
   if(!composto&&(esito==='n'||esito==='p')&&!motivo){mostraMsg('E','Inserisci il motivo dell’irregolarità o della non conformità');return;}
-  if(composto || esito==='p' || esito==='n'){
-    testoNC=motivo;
+  if(esito==='c'){
+    testoNC='A seguito dei controlli effettuati dagli scriventi si è accertato che la struttura risultava conforme a quanto dichiarato nella SCIA presentata e agli obblighi oggetto di verifica.';
   }else{
-    mostraMsg('E','Componi il testo dalle verifiche effettivamente svolte prima di generare la relazione.');return;
+    testoNC=motivo;
   }
   var seguito=document.getElementById('seguitoRic').value.trim();
-  if(seguito)testoNC+='\n\n'+seguito;
+  if(esito!=='c'&&seguito)testoNC+='\n\n'+seguito;
   var btn=document.getElementById('bGen');btn.disabled=true;btn.textContent='Generazione...';
   mostraMsg('L','Creazione DOCX...');
   try{
@@ -379,7 +380,9 @@ async function genera(){
     xml=rf(xml,'VIA LORENZO GIUSTINIANI 40',via);
     xml=rf(xml,'PASTORE LUIGI — Affittacamere &quot;IL BORGO&quot;',tit+' — '+tipoStruttura+' «'+nomeStruttura+'»');
     var introOld='In riferimento all’oggetto, si comunica che in data  alle ore  in Napoli alla  c/o ';
-    var introNew='Data e ora del sopralluogo: '+dataAcc+', ore '+ora+'.';
+    var introNew=esito==='c'
+      ? 'In riferimento all’oggetto, si comunica che in data '+dataAcc+' alle ore '+ora+' in Napoli alla '+via+' c/o '+nomeStruttura
+      : 'Data e ora del sopralluogo: '+dataAcc+', ore '+ora+'.';
     xml=rf(xml,introOld,introNew);
     xml=rf(xml,'In riferimento all’oggetto, si comunica che in data  alle ore  in Napoli alla  c/o',introNew);
     var sottoOld='I sottoscritti  hanno accertato quanto segue';
@@ -392,11 +395,12 @@ async function genera(){
       xml=xml.replace(/w:fill="EBF5EB"/g,esito==='p'?'w:fill="FFF4CC"':'w:fill="FAEAEA"');
       xml=xml.replace(/w:color w:val="155724"/g,esito==='p'?'w:color w:val="8A5A00"':'w:color w:val="8B0000"');
     }
-    xml=rf(xml,'Provvedimenti adottati:','Atti redatti e segnalazioni effettuate:');
+    if(esito!=='c')xml=rf(xml,'Provvedimenti adottati:','Atti redatti e segnalazioni effettuate:');
     xml=rf(xml,'////.',prov||'////.');
     xml=rf(xml,'Napoli, li  11 marzo 2026','Napoli, li  '+dataNap);
     xml=rf(xml,'A.C. FERRARA 3015',ags);
 
+    if(esito==='c')xml=_moveOutcomeTableAfterWriters(xml);
     xml=polishDocumentXml(xml,APP_DOC_KIND); await polishDocxStyles(zip); zip.file('word/document.xml',xml);
     var _xmlRel=xml; var _nomeFile=(window.nomeFilePratica?window.nomeFilePratica(pg,'ric',(document.getElementById('nomeStruttura')||{}).value):null);
     var blob=letteraOn?null:await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
