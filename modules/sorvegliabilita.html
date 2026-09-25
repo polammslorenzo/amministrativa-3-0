@@ -136,6 +136,7 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
         <div class="er">
           <button class="be ok" id="bOk" onclick="setEsito('c')">&#10003; CONFORME</button>
           <button class="be" id="bNo" onclick="setEsito('n')">&#10007; NON CONFORME</button>
+          <button type="button" class="be" id="bCessata" onclick="setEsito('a')">ATTIVITÀ NON PIÙ IN ESSERE</button>
         </div>
         <input type="hidden" id="esito" value="c">
       </div>
@@ -154,6 +155,20 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
             </div>
             <textarea id="testoNC"></textarea>
           </div>
+        </div>
+      </div>
+      <div id="attivitaRow" style="display:none">
+        <div class="f" style="margin-bottom:12px">
+          <label for="statoAttivita">Situazione riscontrata</label>
+          <select id="statoAttivita">
+            <option value="">Seleziona la situazione</option>
+            <option value="chiusa">Attività chiusa</option>
+            <option value="altra">Nei locali è presente un'altra attività</option>
+          </select>
+        </div>
+        <div class="f" style="margin-bottom:12px">
+          <label for="dettagliAttivita">Dettagli accertati</label>
+          <textarea id="dettagliAttivita" rows="3" placeholder="Indica i fatti osservati. Se è presente un'altra attività, descrivila."></textarea>
         </div>
       </div>
       <div class="f"><label>Provvedimenti</label><input id="prov" value="redatto verbale d'ispezione"></div>
@@ -287,10 +302,14 @@ function manuale(){
 }
 
 function setEsito(v){
+  if(!['c','n','a'].includes(v))v='c';
   document.getElementById('esito').value=v;
   document.getElementById('bOk').className='be'+(v==='c'?' ok':'');
   document.getElementById('bNo').className='be'+(v==='n'?' no':'');
+  document.getElementById('bCessata').className='be'+(v==='a'?' ok':'');
   document.getElementById('ncRow').style.display=v==='n'?'block':'none';
+  document.getElementById('attivitaRow').style.display=v==='a'?'block':'none';
+  if(typeof updatePecFields==='function')updatePecFields(false);
 }
 
 function togLettera(){
@@ -345,6 +364,10 @@ async function genera(){
   var esito=document.getElementById('esito').value;
   var testoNC=document.getElementById('testoNC').value.trim();
   if(esito==='n'&&!testoNC){ mostraMsg('E','Genera prima il testo non conformità'); return; }
+  var situazione=document.getElementById('statoAttivita').value;
+  var dettagliAttivita=document.getElementById('dettagliAttivita').value.trim();
+  if(esito==='a'&&!situazione){mostraMsg('E','Indica se l’attività è chiusa o se nei locali è presente un’altra attività');return;}
+  if(esito==='a'&&situazione==='altra'&&!dettagliAttivita){mostraMsg('E','Descrivi l’altra attività riscontrata');return;}
   var btn=document.getElementById('bGen'); btn.disabled=true; btn.textContent='Generazione...';
   mostraMsg('L','Creazione DOCX...');
   try{
@@ -387,6 +410,15 @@ async function genera(){
       var motivoNC=document.getElementById('motivoNC').value.trim();
       var testoFinale=testoNC||('All’esito del sopralluogo si riscontrava che i locali non risultavano conformi ai criteri di sorvegliabilità previsti dal D.M. 564/1992, in quanto '+motivoNC+'.');
       xml=rf(xml,'TESTO_ACCERTATO',testoFinale);
+    } else if(esito==='a'){
+      xml=rf(xml,'Sopralluogo verifica sorvegliabilità','Sopralluogo sullo stato dell’attività');
+      xml=rf(xml,'D.M. 564/1992 · Testo Unico delle Leggi di P.S.','Accertamento dello stato dell’attività');
+      xml=rf(xml,'CONFORME — D.M. 564/1992','ATTIVITÀ NON PIÙ IN ESSERE');
+      var descrizione=situazione==='chiusa'
+        ? 'Al momento del sopralluogo l’attività oggetto della pratica non risultava più in essere: il locale risultava chiuso.'
+        : 'Al momento del sopralluogo l’attività oggetto della pratica non risultava più in essere; nei locali risultava esercitata un’altra attività: '+dettagliAttivita.replace(/[.\s]+$/,'')+'.';
+      if(situazione==='chiusa'&&dettagliAttivita)descrizione+=' '+dettagliAttivita;
+      xml=rf(xml,'TESTO_ACCERTATO',descrizione);
     } else {
       var testoConforme='All’esito del sopralluogo si riscontrava che i locali risultavano conformi ai criteri di sorvegliabilità previsti dal D.M. 564/1992.';
       xml=rf(xml,'TESTO_ACCERTATO',testoConforme);
@@ -418,7 +450,7 @@ async function genera(){
       var xmlL=await zipL.file('word/document.xml').async('string');
       xmlL=xmlL.split('<w:t>All’Area Sviluppo Socio Economico e Competitività</w:t>').join('<w:t>'+xe(areaVal)+'</w:t>');
       xmlL=xmlL.split('<w:t xml:space="preserve">All’Area Sviluppo Socio Economico e Competitività</w:t>').join('<w:t xml:space="preserve">'+xe(areaVal)+'</w:t>');
-      xmlL=rf(xmlL,'Riscontro accertamento','Verifica sorvegliabilità');
+      xmlL=rf(xmlL,'Riscontro accertamento',esito==='a'?'Verifica dello stato dell’attività':'Verifica sorvegliabilità');
       xmlL=rf(xmlL,'Servizio SUAP',uffParts[0]||'');
       xmlL=rf(xmlL,'Indirizzo di protocollo 11.11.0.0.0','Indirizzo di protocollo '+(uffParts[1]||''));
       xmlL=rf(xmlL,'PG/2026/375181',pg);
@@ -426,7 +458,8 @@ async function genera(){
       xmlL=xmlL.split('<w:t xml:space="preserve">   del   28/03/26</w:t>').join('<w:t xml:space="preserve">   del   '+xe(dataI)+'</w:t>');
       xmlL=rf(xmlL,'PG/2026/301627',pgI?pgI:riferimentoRichiestaBreve());
       xmlL=rf(xmlL,'c_f839/Comune_di_Napoli 1176287/17-12-2025',protSUAP||'');
-      xmlL=rf(xmlL,'Trasmissione atti — CONTROLLO POSTEGGIO MERCATO CARAMANICO','Trasmissione atti — SORVEGLIABILITA DEI LOCALI - '+tit);
+      xmlL=rf(xmlL,'Trasmissione atti — CONTROLLO POSTEGGIO MERCATO CARAMANICO',
+        esito==='a'?'Trasmissione atti — ATTIVITÀ NON PIÙ IN ESSERE - '+tit:'Trasmissione atti — SORVEGLIABILITA DEI LOCALI - '+tit);
       xmlL=rf(xmlL,'CRISTIANO VINCENZO',tit);
       xmlL=rf(xmlL,'POSTEGGIO 269 - INT MERCATO',via);
       xmlL=rf(xmlL,'Si trasmette quanto accertato in merito all’oggetto da ASS BATTAGLIA 651S.','Si trasmette quanto accertato in merito all’oggetto da '+xe(ags)+'.');
@@ -587,7 +620,7 @@ function _normalizeHeadingText(s){return String(s||'').replace(/\s+/g,' ').trim(
 function _isFreeHeadingText(s){
   var t=_normalizeHeadingText(s);
   if(!t || t.length>110)return false;
-  return /^(ESITO(?: SOPRALLUOGO| ACCERTAMENTO)?|PARERE(?: FAVOREVOLE| SFAVOREVOLE| CON PRESCRIZIONI| FAVOREVOLE CON PRESCRIZIONI)?|FAVOREVOLE(?: CON PRESCRIZIONI)?|SFAVOREVOLE|CONFORME(?:\s*[—-]\s*D\.M\.\s*564\/1992)?|NON CONFORME(?:\s*[—-]\s*D\.M\.\s*564\/1992)?|IRREGOLARIT[AÀ] PARZIALI|SORVEGLIABILIT[AÀ](?: DEI LOCALI)?|PROVVEDIMENTI(?: ADOTTATI)?)$/.test(t);
+  return /^(ESITO(?: SOPRALLUOGO| ACCERTAMENTO)?|PARERE(?: FAVOREVOLE| SFAVOREVOLE| CON PRESCRIZIONI| FAVOREVOLE CON PRESCRIZIONI)?|FAVOREVOLE(?: CON PRESCRIZIONI)?|SFAVOREVOLE|CONFORME(?:\s*[—-]\s*D\.M\.\s*564\/1992)?|NON CONFORME(?:\s*[—-]\s*D\.M\.\s*564\/1992)?|ATTIVIT[AÀ] NON PI[ÙU] IN ESSERE|IRREGOLARIT[AÀ] PARZIALI|SORVEGLIABILIT[AÀ](?: DEI LOCALI)?|PROVVEDIMENTI(?: ADOTTATI)?)$/.test(t);
 }
 function _removeEmptyAndUnboxHeadingTables(xml){
   return xml.replace(/<w:tbl(?:\s[^>]*)?>[\s\S]*?<\/w:tbl>/g,function(tbl){
@@ -609,7 +642,7 @@ function _moveOutcomeHeadingAfterWriters(xml){
   for(var i=0;i<paras.length;i++){
     var t=_normalizeHeadingText(_xmlPlain(paras[i]));
     if(writerIndex<0 && /I SOTTOSCRITTI[\s\S]*HANNO ACCERTATO QUANTO SEGUE/.test(t)) writerIndex=i;
-    if(headingIndex<0 && /^(ESITO SOPRALLUOGO|ESITO ACCERTAMENTO|CONFORME(?:\s*[—-]\s*D\.M\.\s*564\/1992)?|NON CONFORME(?:\s*[—-]\s*D\.M\.\s*564\/1992)?|REGOLARE CON IRREGOLARIT[AÀ] PARZIALI|IRREGOLARIT[AÀ] PARZIALI)$/.test(t)) headingIndex=i;
+    if(headingIndex<0 && /^(ESITO SOPRALLUOGO|ESITO ACCERTAMENTO|CONFORME(?:\s*[—-]\s*D\.M\.\s*564\/1992)?|NON CONFORME(?:\s*[—-]\s*D\.M\.\s*564\/1992)?|ATTIVIT[AÀ] NON PI[ÙU] IN ESSERE|REGOLARE CON IRREGOLARIT[AÀ] PARZIALI|IRREGOLARIT[AÀ] PARZIALI)$/.test(t)) headingIndex=i;
   }
   if(writerIndex<0 || headingIndex<0 || headingIndex===writerIndex+1)return xml;
   var heading=paras[headingIndex];
@@ -647,6 +680,7 @@ function polishDocumentXml(xml,kind){
     xml=_styleParaByText(xml,'Sorvegliabilità dei locali',{size:28,bold:true,before:80,after:100,keep:true});
     xml=_styleParaByText(xml,'CONFORME — D.M. 564/1992',{size:25,bold:true,center:true,before:70,after:90,keep:true});
     xml=_styleParaByText(xml,'NON CONFORME — D.M. 564/1992',{size:25,bold:true,center:true,before:70,after:90,keep:true});
+    xml=_styleParaByText(xml,'ATTIVITÀ NON PIÙ IN ESSERE',{size:25,bold:true,center:true,before:70,after:90,keep:true});
     xml=_styleParaByText(xml,'ESITO',{size:24,bold:true,center:true,before:80,after:80,keep:true});
   }else if(kind==='strutture_ricettive'){
     xml=_styleParaByText(xml,'STRUTTURA RICETTIVA',{size:28,bold:true,center:true,before:80,after:100,keep:true});
@@ -697,7 +731,7 @@ function _firmaPec(){
 function updatePecFields(force){
   var prot=_pecV('protSUAP');
   var p=document.getElementById('pecProt'); if(p)p.value=prot;
-  var subj='Trasmissione verbale di sorvegliabilita dei locali';
+  var subj=_pecV('esito')==='a'?'Trasmissione accertamento attività non più in essere':'Trasmissione verbale di sorvegliabilita dei locali';
   if(prot)subj+=' - Prot. SUAP '+prot;
   var sog=_pecV('tit'); if(sog)subj+=' - '+sog;
   var lg=_pecV('via'); if(lg)subj+=' - '+lg;
@@ -714,7 +748,9 @@ function generaTestoPec(){
   var corpo='In riferimento alla pratica';
   if(prot)corpo+=' - Prot. SUAP '+prot;
   var rif=riferimentoRichiestaBreve(); if(rif)corpo+=' - '+rif;
-  corpo+=', si trasmette in allegato la nota di trasmissione e il verbale di verifica della sorvegliabilita dei locali';
+  corpo+=_pecV('esito')==='a'
+    ?', si trasmette in allegato la nota di trasmissione e l’accertamento sullo stato dell’attività'
+    :', si trasmette in allegato la nota di trasmissione e il verbale di verifica della sorvegliabilita dei locali';
   if(sog)corpo+=' relativo a '+sog;
   if(lg)corpo+=' sito in '+lg;
   corpo+='.\n\nSi resta a disposizione per gli eventuali ulteriori adempimenti di competenza.\n\n'+_firmaPec();
