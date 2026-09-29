@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pareri Edilizi — U.O. San Lorenzo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="../assets/docx-review.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111318;color:#e8eaf0;min-height:100vh;padding:20px 16px}
@@ -300,8 +301,7 @@ async function genera(){
 
     xml=polishDocumentXml(xml,APP_DOC_KIND); await polishDocxStyles(zip); zip.file('word/document.xml',xml);
     var _xmlRel=xml; var _nomeFile=(window.nomeFilePratica?window.nomeFilePratica(pg,'ed',(document.getElementById('rich')||{}).value):null);
-    var blob=letteraOn?null:await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
-    if(!letteraOn){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(_nomeFile||'relazione')+'.docx';a.click();}recordPracticeFromForm();
+    var _reviewItems=letteraOn?[]:[{zip:zip,filename:(_nomeFile||'relazione')+'.docx'}];
 
     if(letteraOn){
       var pgI=document.getElementById('pgI').value.trim(); pgI=pgI.replace(/^PG\/\d{4}\//i,'');
@@ -340,17 +340,16 @@ async function genera(){
       xmlL=polishDocumentXml(xmlL,APP_DOC_KIND); await polishDocxStyles(zipL); zipL.file('word/document.xml',xmlL);
       var _unito=window.uniscoCorpiDocx?window.uniscoCorpiDocx(xmlL,_xmlRel):null;
       if(_unito) zipL.file('word/document.xml',_unito);
-      var blobL=await zipL.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
-      var urlL=URL.createObjectURL(blobL); var aL=document.createElement('a');
-      aL.href=urlL; aL.download=(_nomeFile||'fascicolo')+'.docx'; aL.click();
-      setTimeout(function(){URL.revokeObjectURL(urlL);},5000);
-      if(!_unito){
-        var blobR=await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
-        setTimeout(function(){var uR=URL.createObjectURL(blobR);var aR=document.createElement('a');aR.href=uR;aR.download=(_nomeFile||'relazione')+'_relazione.docx';aR.click();setTimeout(function(){URL.revokeObjectURL(uR);},5000);},800);
-      }
-      msg('O','\u2713 Scaricato: '+(_nomeFile||'fascicolo')+'.docx'+(_unito?'':' (fusione non riuscita: 2 file)'));
-    } else {
-      msg('O','\u2713 Scaricato: '+(_nomeFile||'relazione')+'.docx');
+      _reviewItems.push({zip:zipL,filename:(_nomeFile||'fascicolo')+'.docx'});
+      if(!_unito)_reviewItems.push({zip:zip,filename:(_nomeFile||'relazione')+'_relazione.docx'});
+    }
+    if(!window.ADMIN3_DOCX_REVIEW)throw new Error('Revisione Word non disponibile. Ricarica la pagina.');
+    var _downloaded=await window.ADMIN3_DOCX_REVIEW.open(_reviewItems);
+    if(_downloaded){
+      recordPracticeFromForm();
+      msg('O','Word scaricato dopo la revisione: '+_reviewItems.map(function(item){return item.filename;}).join(', '));
+    }else{
+      msg('O','Revisione chiusa: nessun Word scaricato.');
     }
   }catch(e){ msg('E','Errore: '+e.message); }
   btn.disabled=false; btn.innerHTML='&#11015; Genera DOCX';
