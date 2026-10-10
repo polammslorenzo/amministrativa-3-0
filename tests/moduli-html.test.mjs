@@ -76,3 +76,26 @@ test("ogni script in linea e sintatticamente valido", () => {
   }
   assert.deepEqual(problemi, [], "\n  " + problemi.join("\n  "));
 });
+
+test("ogni pagina carica il tema condiviso, dopo i propri stili", () => {
+  for (const f of ["tema.css", "tema-moduli.css", "tema-dashboard.css", "tema.js"]) {
+    assert.ok(fs.existsSync(path.join(RADICE, "assets", f)), `manca assets/${f}`);
+  }
+  const valori = fs.readFileSync(path.join(RADICE, "assets", "tema.css"), "utf8");
+  for (const f of fileHtml()) {
+    const testo = fs.readFileSync(path.join(RADICE, f), "utf8");
+    const modulo = f.startsWith("modules");
+    const base = modulo ? "../assets/" : "assets/";
+    const aspetto = modulo ? "tema-moduli.css" : "tema-dashboard.css";
+    const iValori = testo.indexOf(`href="${base}tema.css"`);
+    const iAspetto = testo.indexOf(`href="${base}${aspetto}"`);
+    assert.ok(iValori > 0 && iAspetto > iValori, `${f}: tema non caricato, o caricato nell'ordine sbagliato`);
+    assert.ok(iValori > testo.lastIndexOf("</style>", testo.indexOf("</head>")), `${f}: il tema deve venire dopo gli stili della pagina`);
+    if (modulo) assert.ok(testo.includes('src="../assets/tema.js"'), `${f}: tema.js non caricato`);
+    // Ogni variabile usata dal foglio di aspetto deve essere definita in tema.css.
+    const foglio = fs.readFileSync(path.join(RADICE, "assets", aspetto), "utf8");
+    for (const nome of new Set([...foglio.matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]))) {
+      assert.ok(valori.includes(nome + ":"), `${aspetto} usa ${nome}, che tema.css non definisce`);
+    }
+  }
+});

@@ -1,0 +1,85 @@
+/* Aspetto della dashboard. Va caricato dopo tema.css e dopo gli stili di index.html. */
+html,body{background:var(--bg);color:var(--tx)}
+
+/* Colonna di sinistra */
+.app aside{background:var(--s1);border-right-color:var(--linea)}
+.app .brand{border-bottom-color:var(--linea)}
+.app .brand h1{font-size:var(--t4)}
+.app .brand p{font-size:var(--t1);color:var(--tx3)}
+.app .nav{gap:4px}
+.app .nav button{background:transparent;border-color:transparent;color:var(--tx2);font-size:var(--t3);font-weight:500;border-radius:var(--r1);min-height:42px}
+.app .nav button:hover{background:var(--s3);border-color:transparent;color:var(--tx)}
+.app .nav button.active{background:var(--accento-tenue);border-color:transparent;color:var(--accento);font-weight:600}
+.app aside .small,.app .small{font-size:var(--t1);color:var(--tx3)}
+
+/* Barra in alto */
+.app .topbar{background:var(--s1);border-bottom-color:var(--linea)}
+.app .title{font-size:var(--t3)}
+.app .status{font-size:11px;background:var(--ok-tenue);color:var(--ok);border-color:#1f5a35}
+
+/* Pagina iniziale */
+.app .eyebrow{font-size:var(--t1);color:var(--accento);letter-spacing:.08em}
+.app .hero h2{font-size:var(--titolo);line-height:1.2}
+.app .hero>p{font-size:var(--t3);color:var(--tx2)}
+.app .intake{background:var(--s1);border-color:var(--linea);border-radius:var(--r2);box-shadow:none}
+.app .intake h3{font-size:var(--t4)}
+.app .intake .help{font-size:var(--t2);color:var(--tx3)}
+.app .filebox{background:var(--bg);border-color:var(--linea-forte);border-radius:var(--r1)}
+.app .filebox label{font-size:var(--t2);color:var(--tx2)}
+.app .filebox input{color:var(--tx2);font-size:var(--t2)}
+.app .filebox input::file-selector-button{background:var(--s3);color:var(--tx);border-color:var(--linea-forte);border-radius:var(--r1);font-weight:500}
+.app .primary{background:var(--accento-pieno);border-color:var(--accento-pieno);font-size:var(--t3);font-weight:600;border-radius:var(--r2);min-height:46px}
+.app .primary:hover{background:#3b7bf0}
+.app .secondary{background:transparent;border-color:var(--linea-forte);color:var(--tx2);font-size:var(--t2);font-weight:500;border-radius:var(--r1)}
+.app .secondary:hover{background:var(--s3);color:var(--tx);border-color:var(--linea-forte)}
+.app .manual h3{font-size:var(--t2);color:var(--tx3);font-weight:600}
+.app .card{background:var(--s1);border-color:var(--linea);border-radius:var(--r2)}
+.app .card:hover{border-color:var(--accento);transform:none}
+.app .card h4{font-size:var(--t3)}
+.app .card p{font-size:var(--t2);color:var(--tx3)}
+.app .ic-card{color:var(--accento)}
+
+/* Esito dell'analisi */
+.app .result{border-top-color:var(--linea)}
+.app .route-badge{background:var(--accento-tenue);border-color:#244067;color:var(--accento);font-size:var(--t2);font-weight:600}
+.app .confidence{font-size:var(--t1);color:var(--tx3)}
+.app .reason{font-size:var(--t3);color:var(--tx2)}
+.app .summary{background:var(--bg);border-color:var(--linea);border-radius:var(--r1);font-size:var(--t3)}
+.app .result-box{background:var(--bg);border-color:var(--linea);border-radius:var(--r1)}
+.app .result-box h4{font-size:var(--t1);color:var(--tx3);letter-spacing:.08em}
+.app .result-box ul{font-size:var(--t2);color:var(--tx2)}
+.app .route-confirm select{background:var(--s2);color:var(--tx);border-color:var(--linea-forte);border-radius:var(--r1);font-size:var(--t3)}
+.app .warning{background:#2a1a0c;border-color:#7c4a12;color:var(--avviso);font-size:var(--t2);border-radius:var(--r1)}
+.app .busyline{font-size:var(--t2);color:var(--accento)}
+.app iframe{background:var(--bg)}
+
+/* Colonna di destra */
+.app .right{background:var(--s1);border-left-color:var(--linea)}
+.app .panel{background:var(--bg);border-color:var(--linea);border-radius:var(--r2)}
+.app .panel h3{font-size:var(--t1);color:var(--tx3);letter-spacing:.08em}
+.app .step{font-size:var(--t2);color:var(--tx2);border-bottom-color:var(--linea)}
+.app .dot{background:var(--linea-forte)}
+.app .dot.on{background:var(--ok)}
+.app .field label{font-size:var(--t1);color:var(--tx2);text-transform:none;font-weight:500}
+.app .field input,.app .field textarea{background:var(--s2);border-color:var(--linea-forte);color:var(--tx);border-radius:var(--r1);font-size:var(--t2);min-height:38px}
+.app .field input:focus,.app .field textarea:focus,.app .route-confirm select:focus{outline:none;border-color:var(--accento);box-shadow:var(--anello)}
+.app .btn{background:transparent;border-color:var(--linea-forte);color:var(--tx2);font-size:var(--t2);font-weight:500;border-radius:var(--r1);min-height:38px}
+.app .btn:hover{background:var(--s3);color:var(--tx)}
+.app .btn.ai{background:var(--ai-tenue);border-color:var(--ai-linea);color:var(--ai)}
+.app .btn.ai:hover{background:#2a1a47;color:var(--ai)}
+.app .btn.warn{background:transparent;border-color:#7c4a12;color:var(--avviso)}
+.app .btn.danger{background:transparent;border-color:transparent;color:var(--errore)}
+.app .btn.danger:hover{background:var(--errore-tenue);border-color:#7f1d1d;color:var(--errore)}
+.app .finding{font-size:var(--t1);background:#2a1a0c;border-color:#7c4a12;color:var(--avviso);border-radius:var(--r1)}
+.app .ok{font-size:var(--t1);background:var(--ok-tenue);border-color:#1f5a35;color:var(--ok);border-radius:var(--r1)}
+.app .writer-summary{font-size:var(--t2);background:var(--s2);color:var(--tx2);border-radius:var(--r1)}
+.app .mini-title{font-size:var(--t1);color:var(--tx3)}
+.app .mini-list,.app .next-question{font-size:var(--t2)}
+
+/* Telefono: con un modulo aperto la barra in alto era piu larga dello schermo. */
+@media(max-width:760px){
+  .app main{min-width:0}
+  .app .topbar{padding:10px 12px;gap:8px}
+  .app .title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .app .topbar .secondary,.app .status{flex:0 0 auto;white-space:nowrap}
+}

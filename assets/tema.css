@@ -1,0 +1,22 @@
+/* Tema di Amministrativa 3.0: i valori condivisi da dashboard e moduli.
+   Colori, corpi e raggi si cambiano qui e in nessun altro posto. */
+:root{
+  /* superfici, dalla piu profonda alla piu vicina */
+  --bg:#0f131a; --s1:#151a22; --s2:#1b212b; --s3:#242b37;
+  --linea:#2a3140; --linea-forte:#3a4354;
+  /* testo */
+  --tx:#e8ebf2; --tx2:#b3bccb; --tx3:#8a94a6;
+  /* accento e stati */
+  --accento:#5b9cf6; --accento-pieno:#2f6fe4; --accento-tenue:#16243b;
+  --ai:#c9b8ff; --ai-tenue:#1f1436; --ai-linea:#4c2d8f;
+  --ok:#4ade80; --ok-tenue:#0f2a1a; --avviso:#fbbf24; --errore:#f87171; --errore-tenue:#2a1a1a;
+  /* scala del testo: cinque corpi, nessuno sotto i 12 */
+  --t1:12px; --t2:13px; --t3:15px; --t4:17px; --t5:20px; --titolo:28px;
+  /* due raggi */
+  --r1:8px; --r2:12px;
+  --anello:0 0 0 3px rgba(91,156,246,.32);
+}
+
+
+/* Focus da tastiera visibile su tutto cio che si attiva */
+button:focus-visible,[role="button"]:focus-visible,[role="switch"]:focus-visible,[tabindex]:focus-visible,a:focus-visible{outline:2px solid var(--accento);outline-offset:2px;box-shadow:none}

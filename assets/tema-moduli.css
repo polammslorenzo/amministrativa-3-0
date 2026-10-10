@@ -1,0 +1,83 @@
+/* Aspetto dei quattro moduli. Va caricato dopo tema.css e dopo gli stili del modulo:
+   qui si decide l'aspetto, nel modulo resta la struttura. */
+body{background:var(--bg);color:var(--tx);font-size:var(--t3);line-height:1.5}
+
+/* Sezioni */
+body .sec{background:var(--s1);border-color:var(--linea);border-radius:var(--r2)}
+body .sh{font-size:var(--t1);font-weight:600;color:var(--tx3);letter-spacing:.08em}
+body .sh::after{background:var(--linea)}
+
+/* Etichette: minuscolo normale, piu grandi, piu chiare */
+body label{font-size:var(--t2);font-weight:500;color:var(--tx2);text-transform:none;letter-spacing:0}
+body .ai{font-size:11px;padding:1px 6px;border-radius:4px;background:var(--ok-tenue);color:var(--ok)}
+body .badge{font-size:11px;border-radius:4px;background:var(--accento-tenue);color:var(--accento)}
+body .hdr .ver,body .ver{font-size:var(--t1)!important;color:var(--tx3)!important}
+
+/* Campi */
+body input,body select,body textarea{background:var(--s2);color:var(--tx);border-color:var(--linea-forte);border-radius:var(--r1);font-size:var(--t3);min-height:44px;padding:10px 12px}
+body input::placeholder,body textarea::placeholder{color:#6f7a8c}
+body input:hover,body select:hover,body textarea:hover{border-color:#4a5568}
+body input:focus,body select:focus,body textarea:focus{border-color:var(--accento);box-shadow:var(--anello)}
+body input:disabled,body select:disabled{opacity:.5}
+body input[readonly]{background:var(--s1)!important;color:var(--tx3)!important}
+
+/* Comandi: uno primario, gli altri quieti, i distruttivi a parte */
+body .bgen{background:var(--accento-pieno);color:#fff;font-size:var(--t3);font-weight:600;min-height:48px;border-radius:var(--r2)}
+body .bgen:hover{background:#3b7bf0;filter:none}
+body .bman,body .bai{background:var(--accento-tenue);color:var(--accento);border:1px solid #244067;font-size:var(--t2);border-radius:var(--r1)}
+body .bsmall{background:transparent;color:var(--tx2);border:1px solid var(--linea);font-size:var(--t2);font-weight:500;min-height:38px;padding:7px 12px;border-radius:var(--r1)}
+body .bsmall:hover{background:var(--s3);color:var(--tx);border-color:var(--linea-forte);transform:none;filter:none}
+body .toolbar{background:rgba(15,19,26,.92);border-color:var(--linea);border-radius:var(--r2);gap:6px}
+body .toolbar .distruttivo{margin-left:auto;color:var(--errore);border-color:transparent}
+body .toolbar .distruttivo:hover{background:var(--errore-tenue);border-color:#7f1d1d;color:var(--errore)}
+body .acts{gap:16px;align-items:center}
+body .breset{background:transparent;color:var(--tx3);border:1px solid transparent;font-size:var(--t2);min-height:48px;border-radius:var(--r2)}
+body .breset:hover{color:var(--errore);background:var(--errore-tenue);border-color:#7f1d1d}
+
+/* Esiti e messaggi */
+body .be{font-size:var(--t3);border-radius:var(--r2);border-width:1px;background:var(--s2);color:var(--tx2);min-height:46px}
+body .be.ok{background:var(--ok-tenue);border-color:var(--ok);color:var(--ok)}
+body .be.no{background:var(--errore-tenue);border-color:var(--errore);color:var(--errore)}
+body .msg{font-size:var(--t2);border-radius:var(--r1)}
+
+/* Interruttori: area di tocco piena e stato leggibile anche senza colore */
+body .tog{background:var(--s3);border:1px solid var(--linea-forte);cursor:pointer}
+body .tog::before{content:"";position:absolute;inset:-11px -6px}
+body .tog[aria-checked="true"]{border-color:var(--accento)}
+body .tog-row span{font-size:var(--t3)!important;color:var(--tx2)!important}
+body .tog[aria-checked="true"] + span{color:var(--tx)!important}
+
+/* Rubrica: stessi colori del resto */
+body .rub{background:var(--bg);border-color:var(--linea);border-radius:var(--r2)}
+body .rub-t{font-size:var(--t3);color:var(--tx)}
+body .rub-s,body .rub-n{font-size:var(--t1);color:var(--tx3)}
+body .rub-v{background:var(--s2);border-color:var(--linea-forte);font-size:var(--t3);border-radius:var(--r1)}
+body .rub-v small{font-size:var(--t1);color:var(--tx3)}
+body .rub-a{border-color:var(--linea-forte);border-radius:var(--r1)}
+body .rub-a span{font-size:var(--t1);color:var(--tx3)}
+body .rub-a div{font-size:var(--t3);color:var(--tx)}
+
+/* Elementi presenti solo in alcuni moduli */
+body .drop{background:var(--s1);border-color:var(--linea-forte);border-radius:var(--r2);font-size:var(--t3);color:var(--tx3)}
+body .drop:hover{border-color:var(--accento)}
+body .tpl-btn{background:var(--s2);color:var(--tx2);border:1px solid var(--linea-forte);font-size:var(--t2);border-radius:var(--r1)}
+body .tpl-btn.fav{background:var(--ok-tenue);border-color:var(--ok);color:var(--ok)}
+body .tpl-btn.favp{background:#1a1205;border-color:var(--avviso);color:var(--avviso)}
+body .checkitem,body .check-item{background:var(--s2);border-color:var(--linea-forte);border-radius:var(--r1);font-size:var(--t2);color:var(--tx2)}
+body .checkitem input,body .check-item input{min-height:0}
+body input[type="checkbox"],body input[type="radio"]{min-height:0;width:auto;accent-color:var(--accento)}
+body .genbox{border-radius:var(--r1)}
+body .genbox-h{font-size:var(--t1)}
+body .genbox textarea{font-size:var(--t3)}
+body .preview-card{background:var(--s1)!important;border-color:var(--linea)!important;border-radius:var(--r2)!important}
+body .preview-row,body .check-row{font-size:var(--t2)}
+body .preview-row span{color:var(--tx3)}
+body .hdr{border-bottom-color:var(--linea)}
+
+/* Nessun testo sotto i 12 px, nemmeno dove il corpo e scritto sul singolo elemento */
+body [style*="font-size:9px"],body [style*="font-size:10px"],body [style*="font-size:11px"],body [style*="font-size: 11px"]{font-size:var(--t1)!important}
+
+@media(max-width:700px){
+  body .toolbar .distruttivo{margin-left:0}
+  body .acts{gap:8px}
+}
