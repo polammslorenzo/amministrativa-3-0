@@ -415,6 +415,9 @@ async function genera(){
       var areaVal=dA.options[dA.selectedIndex].value||"All'Area Sviluppo Socio Economico e Competitivita";
       var uffVal=dU.options[dU.selectedIndex].value||'|';
       var uffParts=uffVal.split('|');
+      // Destinatario non abituale preso dalla Rubrica Egrammata: sostituisce i due menu.
+      var _rub=window.rubricaDestinatario?window.rubricaDestinatario():null;
+      if(_rub&&_rub.attivo){areaVal=_rub.area;uffParts=[_rub.servizio||_rub.senzaServizio,_rub.indirizzo];}
       var fq=document.getElementById('fqual');var fn=document.getElementById('fnome');
       var zipL=await JSZip.loadAsync(B64L,{base64:true});
       var xmlL=await zipL.file('word/document.xml').async('string');
@@ -442,6 +445,8 @@ async function genera(){
       if(areaVal) xmlL=_styleParaByText(xmlL,areaVal,{right:true,before:0,after:20,keep:true});
       if(uffParts && uffParts[0]) xmlL=_styleParaByText(xmlL,uffParts[0],{right:true,before:0,after:20,keep:true});
       if(uffParts && uffParts[1]) xmlL=_styleParaByText(xmlL,'Indirizzo di protocollo '+uffParts[1],{right:true,before:0,after:70,keep:true});
+      // Rubrica: toglie la riga del servizio se il destinatario non ne ha, e aggiunge il nominativo facoltativo sotto il servizio.
+      if(_rub&&window.rubricaCompleta) xmlL=window.rubricaCompleta(xmlL,_rub,areaVal,uffParts);
       xmlL=_styleParaByText(xmlL,fq.options[fq.selectedIndex].text,{right:true,before:100,after:20,keep:true});
       xmlL=_styleParaByText(xmlL,fn.options[fn.selectedIndex].text,{right:true,before:0,after:20,keep:true});
       xmlL=polishDocumentXml(xmlL,APP_DOC_KIND); await polishDocxStyles(zipL); zipL.file('word/document.xml',xmlL);
@@ -693,6 +698,8 @@ async function polishDocxStyles(zip){
 }
 
 </script>
+<script src="../assets/rubrica-dati.js"></script>
+<script src="../assets/rubrica.js"></script>
 <script src="../assets/module-ai-bridge.js"></script>
 <script>
 // ===== Motore PEC (ripreso da Pareri Suolo Pubblico v6.0) =====

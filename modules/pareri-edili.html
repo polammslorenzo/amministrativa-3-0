@@ -310,6 +310,9 @@ async function genera(){
       var dA=document.getElementById('destA'); var dU=document.getElementById('destU');
       var areaVal=dA.options[dA.selectedIndex].value||"All'Area Sviluppo Socio Economico e Competitivita";
       var uffVal=dU.options[dU.selectedIndex].value||'|'; var uffParts=uffVal.split('|');
+      // Destinatario non abituale preso dalla Rubrica Egrammata: sostituisce i due menu.
+      var _rub=window.rubricaDestinatario?window.rubricaDestinatario():null;
+      if(_rub&&_rub.attivo){areaVal=_rub.area;uffParts=[_rub.servizio||_rub.senzaServizio,_rub.indirizzo];}
       var fq=document.getElementById('fqual'); var fn=document.getElementById('fnome');
       var est=document.getElementById('estensore');
       var zipL=await JSZip.loadAsync(B64L,{base64:true});
@@ -335,6 +338,8 @@ async function genera(){
       if(areaVal) xmlL=_styleParaByText(xmlL,areaVal,{right:true,before:0,after:20,keep:true});
       if(uffParts && uffParts[0]) xmlL=_styleParaByText(xmlL,uffParts[0],{right:true,before:0,after:20,keep:true});
       if(uffParts && uffParts[1]) xmlL=_styleParaByText(xmlL,'Indirizzo di protocollo '+uffParts[1],{right:true,before:0,after:70,keep:true});
+      // Rubrica: toglie la riga del servizio se il destinatario non ne ha, e aggiunge il nominativo facoltativo sotto il servizio.
+      if(_rub&&window.rubricaCompleta) xmlL=window.rubricaCompleta(xmlL,_rub,areaVal,uffParts);
       xmlL=_styleParaByText(xmlL,fq.options[fq.selectedIndex].text,{right:true,before:100,after:20,keep:true});
       xmlL=_styleParaByText(xmlL,fn.options[fn.selectedIndex].text,{right:true,before:0,after:20,keep:true});
       xmlL=polishDocumentXml(xmlL,APP_DOC_KIND); await polishDocxStyles(zipL); zipL.file('word/document.xml',xmlL);
@@ -568,6 +573,8 @@ async function polishDocxStyles(zip){
 }
 
 </script>
+<script src="../assets/rubrica-dati.js"></script>
+<script src="../assets/rubrica.js"></script>
 <script src="../assets/module-ai-bridge.js"></script>
 <div style="margin:26px 14px 12px;padding-top:11px;border-top:1px solid #1e2632;color:#8a94a6;font-size:11px;line-height:1.5;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">AMMINISTRATIVA 3.0 — AI protetta tramite Supabase Edge Function; nessuna chiave nel browser.</div>
 </body>
