@@ -84,3 +84,50 @@ test("rubrica: ogni modulo la carica e la usa, e i destinatari abituali non hann
     assert.ok(!/value='[^'>]*\\'/.test(html), `${f}: un attributo value e troncato da una barra rovesciata`);
   }
 });
+
+test("rubrica: i destinatari abituali hanno nomi e indirizzi della rubrica, uguali in tutti i moduli", () => {
+  const opzioni = (html, id) => {
+    const menu = new RegExp(`<select id="${id}">([\\s\\S]*?)</select>`).exec(html);
+    assert.ok(menu, `menu ${id} assente`);
+    return [...menu[1].matchAll(/<option value="([^"]*)">/g)].map((m) => m[1].replace(/&quot;/g, '"').replace(/&amp;/g, "&"));
+  };
+  const moduli = fs.readdirSync(path.join(RADICE, "modules")).filter((x) => x.endsWith(".html"));
+  let primo = null;
+  for (const f of moduli) {
+    const html = leggi(path.join("modules", f));
+    const aree = opzioni(html, "destA").filter(Boolean);
+    const uffici = opzioni(html, "destU").filter((v) => v !== "|");
+    assert.ok(uffici.length >= 5, `${f}: menu degli uffici quasi vuoto`);
+    for (const valore of uffici) {
+      const taglio = valore.lastIndexOf("|");
+      const nome = valore.slice(0, taglio), codice = valore.slice(taglio + 1);
+      const v = voce(codice);
+      assert.ok(v, `${f}: ${codice} non esiste in rubrica`);
+      const r = L.righe(v);
+      // Una voce di vertice (21.0.0.0.0: Area Sicurezza e Servizio Polizia Locale) non ha riga del servizio.
+      if (r.servizio) assert.equal(nome, r.servizio, `${f}: nome diverso dalla rubrica per ${codice}`);
+      else assert.ok(v.n.includes(nome.replace(/^Servizio /, "")), `${f}: ${nome} non corrisponde a ${v.n}`);
+      assert.ok(aree.includes(r.area), `${f}: manca tra le Aree quella di ${nome} (${r.area})`);
+    }
+    const tutteLeAree = new Set(VOCI.map((v) => L.righe(v).area));
+    for (const a of aree) assert.ok(tutteLeAree.has(a), `${f}: "${a}" non corrisponde a nessuna struttura della rubrica`);
+    const firma = JSON.stringify([aree, uffici]);
+    if (primo === null) primo = firma;
+    assert.equal(firma, primo, `${f}: menu diversi dagli altri moduli`);
+  }
+});
+
+test("rubrica: i valori salvati prima dell'allineamento vengono tradotti in quelli nuovi", () => {
+  const html = leggi("modules/sorvegliabilita.html");
+  const valori = (id) => [...new RegExp(`<select id="${id}">([\\s\\S]*?)</select>`).exec(html)[1].matchAll(/<option value="([^"]*)">/g)].map((m) => m[1]);
+  const aree = valori("destA"), uffici = valori("destU");
+  assert.equal(L.traduciVecchio("All'Area Sviluppo Socio Economico e Competitivita", aree), "All'Area Sviluppo Economico");
+  assert.equal(L.traduciVecchio("Alla Municipalita 4", aree), "Alla Direzione Municipalità 4");
+  assert.equal(L.traduciVecchio("All'Area Sicurezza", aree), "All'Area Sicurezza");
+  for (const vecchio of ["Servizio SUAP|11.11.0.0.0", "Servizio Tutela Ambiente|14.17.0.0.0", "Unita Operativa Attivita Tecniche|25.0.6.0.0", "Servizio Gestione Canoni e Altri Tributi|41.3.0.0.0"]) {
+    const nuovo = L.traduciVecchio(vecchio, uffici);
+    assert.ok(nuovo && nuovo.endsWith(vecchio.slice(vecchio.lastIndexOf("|"))), `non tradotto: ${vecchio}`);
+  }
+  assert.equal(L.traduciVecchio("Ufficio inesistente|0.0.0.0.1", uffici), null);
+  assert.equal(L.traduciVecchio("|", uffici), "|");
+});

@@ -194,27 +194,25 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
         </div>
         <div class="g2">
           <div class="f"><label>Area destinataria</label>
-            <select id="destA">
-              <option value="">-</option>
-              <option value="All'Area Sviluppo Socio Economico e Competitivita">All'Area Sviluppo Socio Economico</option>
+            <select id="destA"><option value="">-</option>
+              <option value="All'Area Sviluppo Economico">All'Area Sviluppo Economico</option>
               <option value="All'Area Sicurezza">All'Area Sicurezza</option>
               <option value="All'Area Ambiente">All'Area Ambiente</option>
               <option value="All'Area Urbanistica">All'Area Urbanistica</option>
-            </select>
+              <option value="All'Area Entrate">All'Area Entrate</option>
+              <option value="Alla Direzione Municipalità 4">Alla Direzione Municipalità 4</option></select>
           </div>
           <div class="f"><label>Ufficio destinatario</label>
-            <select id="destU">
-              <option value="|">-</option>
-              <option value="Servizio SUAP|11.11.0.0.0">Servizio SUAP — 11.11.0.0.0</option>
+            <select id="destU"><option value="|">-</option>
+              <option value="Servizio Sportello Unico Attività Produttive (SUAP)|11.11.0.0.0">Servizio Sportello Unico Attività Produttive (SUAP) — 11.11.0.0.0</option>
               <option value="Servizio Mercati|11.1.0.0.0">Servizio Mercati — 11.1.0.0.0</option>
-              <option value="Servizio Tutela Ambiente|14.17.0.0.0">Serv. Tutela Ambiente — 14.17.0.0.0</option>
-              <option value="Servizio Gestione Canoni e Altri Tributi|41.3.0.0.0">Serv. Gestione Canoni — 41.3.0.0.0</option>
-              <option value="Unita Operativa Attivita Tecniche|25.0.6.0.0">U.O. Attivita Tecniche — 25.0.6.0.0</option>
-              <option value="Servizio Sportello Unico Edilizia|9.4.0.0.0">Serv. SUE — 9.4.0.0.0</option>
-              <option value="Servizio Condono Edilizio|9.8.0.0.0">Serv. Condono Edilizio — 9.8.0.0.0</option>
-              <option value="Servizio Polizia Locale|21.0.0.0.0">Serv. Polizia Locale — 21.0.0.0.0</option>
-              <option value="Servizio Coordinamento Strategico Operativo|21.65.0.0.0">Serv. Coordinamento — 21.65.0.0.0</option>
-            </select>
+              <option value="Servizio Tutela dell'ambiente, della salute e del paesaggio|14.17.0.0.0">Servizio Tutela dell'ambiente, della salute e del paesaggio — 14.17.0.0.0</option>
+              <option value="Servizio Gestione Canoni e altri Tributi|41.3.0.0.0">Servizio Gestione Canoni e altri Tributi — 41.3.0.0.0</option>
+              <option value="U.O. Attività tecniche - Municipalità 4|25.0.6.0.0">U.O. Attività tecniche - Municipalità 4 — 25.0.6.0.0</option>
+              <option value="Servizio Sportello Unico Edilizia|9.4.0.0.0">Servizio Sportello Unico Edilizia — 9.4.0.0.0</option>
+              <option value="Servizio Condono Edilizio|9.8.0.0.0">Servizio Condono Edilizio — 9.8.0.0.0</option>
+              <option value="Servizio Polizia Locale|21.0.0.0.0">Servizio Polizia Locale — 21.0.0.0.0</option>
+              <option value="Servizio Coordinamento Strategico Operativo|21.65.0.0.0">Servizio Coordinamento Strategico Operativo — 21.65.0.0.0</option></select>
           </div>
         </div>
         <div class="g2">
@@ -442,7 +440,7 @@ async function genera(){
       var dataIEl=document.getElementById('dataI');
       var dataI=(dataIEl&&dataIEl.value.trim())?dataIEl.value.trim():dataR;
       var dA=document.getElementById('destA'); var dU=document.getElementById('destU');
-      var areaVal=dA.options[dA.selectedIndex].value||"All'Area Sviluppo Socio Economico e Competitivita";
+      var areaVal=dA.options[dA.selectedIndex].value||"All'Area Sviluppo Economico";
       var uffVal=dU.options[dU.selectedIndex].value||'|';
       var uffParts=uffVal.split('|');
       // Destinatario non abituale preso dalla Rubrica Egrammata: sostituisce i due menu.

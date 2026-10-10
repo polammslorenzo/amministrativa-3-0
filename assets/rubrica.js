@@ -137,7 +137,28 @@
     return { xml: conNome === null ? esito : conNome, nomeInserito: conNome !== null };
   }
 
-  window.ADMIN3_RUBRICA_LOGICA = { norm: norm, righe: righe, cerca: cerca, rigaSotto: rigaSotto, togliRiga: togliRiga, completa: completa, SENZA_SERVIZIO: SENZA_SERVIZIO, maiuscoleIniziali: maiuscoleIniziali };
+  // I menu dei destinatari abituali sono stati allineati alla rubrica: bozze e
+  // pratiche salvate prima portano ancora i vecchi valori. Per gli uffici fa
+  // fede l'indirizzo di protocollo; per le Aree i due nomi cambiati.
+  var AREE_RINOMINATE = {
+    "All'Area Sviluppo Socio Economico e Competitivita": "All'Area Sviluppo Economico",
+    "Alla Municipalita 4": "Alla Direzione Municipalità 4"
+  };
+  function traduciVecchio(valore, disponibili) {
+    var testo = String(valore == null ? "" : valore);
+    if (disponibili.indexOf(testo) >= 0) return testo;
+    if (AREE_RINOMINATE[testo] && disponibili.indexOf(AREE_RINOMINATE[testo]) >= 0) return AREE_RINOMINATE[testo];
+    var barra = testo.lastIndexOf("|");
+    if (barra >= 0 && barra < testo.length - 1) {
+      var coda = testo.slice(barra);
+      for (var i = 0; i < disponibili.length; i++) {
+        if (disponibili[i].slice(-coda.length) === coda) return disponibili[i];
+      }
+    }
+    return null;
+  }
+
+  window.ADMIN3_RUBRICA_LOGICA = { norm: norm, righe: righe, cerca: cerca, rigaSotto: rigaSotto, togliRiga: togliRiga, completa: completa, SENZA_SERVIZIO: SENZA_SERVIZIO, maiuscoleIniziali: maiuscoleIniziali, traduciVecchio: traduciVecchio };
 
   if (typeof document === "undefined") return;
 
@@ -171,9 +192,32 @@
     return f;
   }
 
+  // Bozze e ripristini scrivono select.value: se il valore e uno di quelli vecchi
+  // il menu resterebbe senza selezione e la generazione della lettera andrebbe in
+  // errore. Qui il valore viene tradotto; se non e traducibile si torna a "-".
+  function proteggiMenu(menu) {
+    var nativo = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value");
+    if (!menu || !nativo || !nativo.set || menu.dataset.rubricaProtetto) return;
+    menu.dataset.rubricaProtetto = "1";
+    Object.defineProperty(menu, "value", {
+      configurable: true,
+      get: function () { return nativo.get.call(this); },
+      set: function (valore) {
+        nativo.set.call(this, valore);
+        if (this.selectedIndex >= 0) return;
+        var disponibili = [];
+        for (var i = 0; i < this.options.length; i++) disponibili.push(this.options[i].value);
+        var tradotto = traduciVecchio(valore, disponibili);
+        if (tradotto !== null) nativo.set.call(this, tradotto);
+        if (this.selectedIndex < 0) this.selectedIndex = 0;
+      }
+    });
+  }
+
   function avvia() {
     var dati = window.ADMIN3_RUBRICA;
     var selArea = campo("destA"), selUff = campo("destU");
+    proteggiMenu(selArea); proteggiMenu(selUff);
     if (!dati || !dati.voci || !selArea || !selUff || campo("rubArea")) return;
     var griglia = selArea.closest ? selArea.closest(".g2") : null;
     if (!griglia || !griglia.parentNode) return;
@@ -275,7 +319,7 @@
     function aggiorna() {
       var d = window.rubricaDestinatario();
       var abituale = (selUff.options[selUff.selectedIndex] || { value: "|" }).value.split("|");
-      var area = d.attivo ? d.area : ((selArea.options[selArea.selectedIndex] || { value: "" }).value || "All'Area Sviluppo Socio Economico e Competitivita");
+      var area = d.attivo ? d.area : ((selArea.options[selArea.selectedIndex] || { value: "" }).value || "All'Area Sviluppo Economico");
       var servizio = d.attivo ? d.servizio : (abituale[0] || "");
       var indirizzo = d.attivo ? d.indirizzo : (abituale[1] || "");
       var nuova = [d.attivo, area, servizio, indirizzo, d.nome].join("\u0001");
