@@ -122,7 +122,7 @@ function leggiZip(buffer) {
   return file;
 }
 
-test("ogni modello Word ha il pie' di pagina dell'ufficio: marchio, sede, recapiti e numero di pagina", () => {
+test("ogni modello Word ha il pie' di pagina dell'ufficio e non stira le righe prima di un a capo", () => {
   let modelli = 0;
   for (const f of fileHtml().filter((x) => x.startsWith("modules"))) {
     const testo = fs.readFileSync(path.join(RADICE, f), "utf8");
@@ -137,6 +137,9 @@ test("ogni modello Word ha il pie' di pagina dell'ufficio: marchio, sede, recapi
       for (const recapito of ["081 7952809", "polizialocale.sanlorenzo@comune.napoli.it", "polizialocale.sanlorenzo@pec.comune.napoli.it"]) {
         assert.ok(piede.includes(recapito), `${dove}: manca il recapito ${recapito} nel pie' di pagina`);
       }
+      // Testo giustificato con a capo (MAIUSC+INVIO): senza questa opzione Word stira la riga prima dell'a capo.
+      const impostazioni = (zip["word/settings.xml"] || Buffer.alloc(0)).toString("utf8");
+      assert.match(impostazioni, /<w:compat>\s*<w:doNotExpandShiftReturn\/>/, `${dove}: manca l'opzione che evita le righe stirate prima di un a capo`);
       const legame = /r:embed="([^"]+)"/.exec(piede);
       assert.ok(legame, `${dove}: manca il marchio nel pie' di pagina`);
       const relazioni = (zip["word/_rels/footer1.xml.rels"] || Buffer.alloc(0)).toString("utf8");
