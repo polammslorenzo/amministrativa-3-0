@@ -131,3 +131,39 @@ test("rubrica: i valori salvati prima dell'allineamento vengono tradotti in quel
   assert.equal(L.traduciVecchio("Ufficio inesistente|0.0.0.0.1", uffici), null);
   assert.equal(L.traduciVecchio("|", uffici), "|");
 });
+
+test("rubrica: piu destinatari, con quelli per conoscenza in fondo dopo \"e, p.c.\"", () => {
+  const riga2 = (testo, extra) => `<w:p><w:pPr><w:spacing w:before="0" w:after="20"/><w:jc w:val="right"/></w:pPr><w:r><w:rPr>${extra}</w:rPr><w:t>${testo}</w:t></w:r></w:p>`;
+  const lettera = riga2("All'Area Urbanistica", "") + riga2("Servizio Condono Edilizio", "<w:b/>") + riga2("Indirizzo di protocollo 9.8.0.0.0", "<w:i/>") + riga("Corpo della lettera");
+  const altri = L.altriDa(JSON.stringify([
+    { area: "All'Area Ambiente", servizio: "Servizio Verde & Giardini", indirizzo: "14.1.0.0.0", pc: true },
+    { area: "All'Area Sicurezza", servizio: "U.O. San Lorenzo", indirizzo: "21.22.0.0.0", nome: "c.a. Dott. Rossi" },
+    { area: "Al Sindaco", pc: true },
+    { area: "", servizio: "" },
+  ]));
+  assert.equal(altri.length, 3, "una scheda vuota non e un destinatario");
+  const esito = L.completa(lettera, { nome: "", altri }, "All'Area Urbanistica", ["Servizio Condono Edilizio", "9.8.0.0.0"]);
+  assert.equal(esito.altriInseriti, true);
+  assert.deepEqual(testi(esito.xml), [
+    "All'Area Urbanistica", "Servizio Condono Edilizio", "Indirizzo di protocollo 9.8.0.0.0",
+    "All'Area Sicurezza", "U.O. San Lorenzo", "c.a. Dott. Rossi", "Indirizzo di protocollo 21.22.0.0.0",
+    "e, p.c.",
+    "All'Area Ambiente", "Servizio Verde &amp; Giardini", "Indirizzo di protocollo 14.1.0.0.0",
+    "Al Sindaco",
+    "Corpo della lettera",
+  ]);
+  const paragrafi = esito.xml.match(/<w:p>[\s\S]*?<\/w:p>/g);
+  assert.match(paragrafi[3], /w:before="160"[^>]*\/><w:jc w:val="right"\/>/, "manca lo stacco sopra il secondo destinatario");
+  assert.match(paragrafi[4], /<w:b\/>/, "il servizio in piu non ha l'aspetto del servizio");
+  assert.match(paragrafi[7], /<w:i\/>/, "\"e, p.c.\" deve avere l'aspetto della riga dell'indirizzo");
+  assert.match(paragrafi[8], /w:before="40"/);
+  assert.ok(esito.xml.indexOf("<w:spacing") < esito.xml.indexOf("<w:jc"), "spacing deve precedere jc");
+
+  // Senza le righe del primo destinatario non si inventa una posizione: lo si segnala.
+  assert.equal(L.completa(riga("solo corpo"), { altri }, "Area che non c'e", ["", "1.0.0.0.0"]).altriInseriti, false);
+  // Nessun destinatario in piu: la lettera resta quella di prima.
+  assert.equal(L.completa(lettera, { altri: [] }, "All'Area Urbanistica", ["Servizio Condono Edilizio", "9.8.0.0.0"]).xml, lettera);
+  // Testo non valido nel campo salvato: nessun destinatario, nessun errore.
+  assert.deepEqual([...L.altriDa("non e json")], []);
+  assert.equal(L.altriDa(JSON.stringify(new Array(20).fill({ area: "X" }))).length, 6, "oltre sei destinatari non si va");
+});

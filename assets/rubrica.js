@@ -124,6 +124,59 @@
   // del servizio e completa() elimina l'intero paragrafo.
   var SENZA_SERVIZIO = "§§senza-servizio§§";
 
+  // ---- Altri destinatari, anche per conoscenza ----
+  var MAX_ALTRI = 6;
+  function pulito(v) { return String(v == null ? "" : v).replace(/[\u0000-\u001f]+/g, " ").trim().slice(0, 200); }
+
+  // L'elenco viaggia in un solo campo nascosto, come testo: cosi bozze e ripristini
+  // lo salvano e lo ricaricano come qualunque altro campo del modulo.
+  function altriDa(testo) {
+    var grezzi;
+    try { grezzi = JSON.parse(String(testo || "[]")); } catch (errore) { return []; }
+    if (!Array.isArray(grezzi)) return [];
+    return grezzi.slice(0, MAX_ALTRI).map(function (g) {
+      g = g || {};
+      return { area: pulito(g.area), servizio: pulito(g.servizio), indirizzo: pulito(g.indirizzo), nome: pulito(g.nome), pc: g.pc === true };
+    }).filter(function (a) { return a.area || a.servizio; });
+  }
+  // Prima i destinatari diretti, poi quelli per conoscenza: e l'ordine in cui escono.
+  function inOrdine(altri) {
+    return altri.filter(function (a) { return !a.pc; }).concat(altri.filter(function (a) { return a.pc; }));
+  }
+
+  function paragrafoCon(xml, testo) {
+    var cercato = String(testo || "").trim(), trovato = null;
+    if (!cercato) return null;
+    String(xml).replace(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g, function (paragrafo) {
+      if (trovato === null && xmlTesto(paragrafo).trim() === cercato) trovato = paragrafo;
+      return paragrafo;
+    });
+    return trovato;
+  }
+  // Nuovo paragrafo con allineamento e carattere di `modello`; `prima` e lo spazio sopra (in ventesimi di punto).
+  function clona(modello, testo, prima) {
+    var proprieta = (/<w:pPr(?:\s[^>]*)?>[\s\S]*?<\/w:pPr>|<w:pPr(?:\s[^>]*)?\/>/.exec(modello) || [""])[0];
+    var carattere = (/<w:r(?:\s[^>]*)?>\s*(<w:rPr(?:\s[^>]*)?>[\s\S]*?<\/w:rPr>)/.exec(modello.replace(proprieta, "")) || ["", ""])[1];
+    if (prima) {
+      var spazio = /<w:spacing\b[^>]*\/>/.exec(proprieta);
+      if (spazio) {
+        var nuovoSpazio = /w:before="[^"]*"/.test(spazio[0])
+          ? spazio[0].replace(/w:before="[^"]*"/, 'w:before="' + prima + '"')
+          : spazio[0].replace("<w:spacing", '<w:spacing w:before="' + prima + '"');
+        proprieta = proprieta.replace(spazio[0], nuovoSpazio);
+      } else if (/<w:jc\b/.test(proprieta)) {
+        proprieta = proprieta.replace(/<w:jc\b/, '<w:spacing w:before="' + prima + '"/><w:jc');
+      } else if (/<\/w:pPr>/.test(proprieta)) {
+        proprieta = proprieta.replace("</w:pPr>", '<w:spacing w:before="' + prima + '"/></w:pPr>');
+      } else {
+        proprieta = '<w:pPr><w:spacing w:before="' + prima + '"/></w:pPr>';
+      }
+    }
+    return "<w:p>" + proprieta + "<w:r>" + carattere + '<w:t xml:space="preserve">' + xmlProteggi(testo) + "</w:t></w:r></w:p>";
+  }
+
+  var E_PER_CONOSCENZA = "e, p.c.";
+
   function completa(xml, destinatario, areaVal, uffParts) {
     var servizio = (uffParts && uffParts[0]) || "";
     var esito = String(xml);
@@ -132,9 +185,37 @@
       servizio = "";
     }
     var nome = destinatario && destinatario.nome;
-    if (!nome) return { xml: esito, nomeInserito: true };
-    var conNome = rigaSotto(esito, servizio || areaVal, nome);
-    return { xml: conNome === null ? esito : conNome, nomeInserito: conNome !== null };
+    var nomeInserito = true;
+    if (nome) {
+      var conNome = rigaSotto(esito, servizio || areaVal, nome);
+      nomeInserito = conNome !== null;
+      if (nomeInserito) esito = conNome;
+    }
+    var altri = inOrdine((destinatario && destinatario.altri) || []);
+    if (!altri.length) return { xml: esito, nomeInserito: nomeInserito, altriInseriti: true };
+
+    // I destinatari in piu vanno sotto l'indirizzo del primo, con lo stesso aspetto
+    // delle sue tre righe: Area, Servizio (e nominativo), indirizzo di protocollo.
+    var mArea = paragrafoCon(esito, areaVal);
+    var mInd = paragrafoCon(esito, "Indirizzo di protocollo " + ((uffParts && uffParts[1]) || ""));
+    if (!mArea || !mInd) return { xml: esito, nomeInserito: nomeInserito, altriInseriti: false };
+    var mServ = (servizio && paragrafoCon(esito, servizio)) || mArea;
+    var nuovi = "", intestazionePc = false;
+    altri.forEach(function (a) {
+      var stacco = 160;
+      if (a.pc && !intestazionePc) { nuovi += clona(mInd, E_PER_CONOSCENZA, 160); intestazionePc = true; stacco = 40; }
+      var prima = true;
+      function riga(modello, testo) { if (!testo) return; nuovi += clona(modello, testo, prima ? stacco : 0); prima = false; }
+      riga(mArea, a.area); riga(mServ, a.servizio); riga(mServ, a.nome);
+      riga(mInd, a.indirizzo ? "Indirizzo di protocollo " + a.indirizzo : "");
+    });
+    var fatto = false;
+    esito = esito.replace(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g, function (paragrafo) {
+      if (fatto || paragrafo !== mInd) return paragrafo;
+      fatto = true;
+      return paragrafo + nuovi;
+    });
+    return { xml: esito, nomeInserito: nomeInserito, altriInseriti: fatto };
   }
 
   // I menu dei destinatari abituali sono stati allineati alla rubrica: bozze e
@@ -158,7 +239,7 @@
     return null;
   }
 
-  window.ADMIN3_RUBRICA_LOGICA = { norm: norm, righe: righe, cerca: cerca, rigaSotto: rigaSotto, togliRiga: togliRiga, completa: completa, SENZA_SERVIZIO: SENZA_SERVIZIO, maiuscoleIniziali: maiuscoleIniziali, traduciVecchio: traduciVecchio };
+  window.ADMIN3_RUBRICA_LOGICA = { norm: norm, righe: righe, cerca: cerca, rigaSotto: rigaSotto, togliRiga: togliRiga, completa: completa, altriDa: altriDa, inOrdine: inOrdine, E_PER_CONOSCENZA: E_PER_CONOSCENZA, SENZA_SERVIZIO: SENZA_SERVIZIO, maiuscoleIniziali: maiuscoleIniziali, traduciVecchio: traduciVecchio };
 
   if (typeof document === "undefined") return;
 
@@ -168,12 +249,15 @@
   // Usata dai moduli al momento di comporre la lettera.
   window.rubricaDestinatario = function () {
     var area = valore("rubArea"), servizio = valore("rubServ"), indirizzo = valore("rubInd");
-    return { attivo: !!(area || servizio || indirizzo), area: area, servizio: servizio, indirizzo: indirizzo, nome: valore("rubNome"), senzaServizio: SENZA_SERVIZIO };
+    return { attivo: !!(area || servizio || indirizzo), area: area, servizio: servizio, indirizzo: indirizzo, nome: valore("rubNome"), altri: altriDa(valore("rubAltri")), senzaServizio: SENZA_SERVIZIO };
   };
   window.rubricaCompleta = function (xml, destinatario, areaVal, uffParts) {
     var esito = completa(xml, destinatario, areaVal, uffParts);
     if (!esito.nomeInserito && typeof window.mostraMsg === "function") {
       window.mostraMsg("E", "Nominativo non inserito nella lettera: aggiungilo a mano sotto il servizio.");
+    }
+    if (!esito.altriInseriti && typeof window.mostraMsg === "function") {
+      window.mostraMsg("E", "Gli altri destinatari non sono stati inseriti nella lettera: aggiungili a mano.");
     }
     return esito.xml;
   };
@@ -237,7 +321,13 @@
       ".rub-a span{display:block;font-size:10px;letter-spacing:.7px;text-transform:uppercase;color:#8a94a6;margin-bottom:6px}" +
       ".rub-a div{text-align:right;font-size:13px;line-height:1.5;color:#e8eaf0}" +
       ".rub-a div.manca{color:#fbbf24}" +
-      ".rub-x{margin-top:10px;display:none}";
+      ".rub-x{margin-top:10px;display:none}" +
+      ".rub-altri{margin-top:16px;padding-top:14px;border-top:1px solid #2a2d38}" +
+      ".rub-c{border:1px solid #2a2d38;border-radius:8px;padding:12px;margin:10px 0;background:#16191f}" +
+      ".rub-ch{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;font-size:13px;font-weight:600;color:#e8eaf0}" +
+      ".rub-ch label{display:flex;align-items:center;gap:7px;margin-left:auto;font-size:13px;font-weight:500;text-transform:none;letter-spacing:0;color:#b3bccb;cursor:pointer}" +
+      ".rub-ch input{width:auto;min-height:0}" +
+      ".rub-a div.pc{font-style:italic;color:#8a94a6}.rub-a div.stacco{margin-top:9px}";
     document.head.appendChild(stile);
 
     var riquadro = crea("div", "rub");
@@ -265,6 +355,18 @@
     var nominativo = casella("rubNome", "Nominativo sotto il servizio (facoltativo)", "es. c.a. Dott. Mario Rossi");
     nominativo.style.marginTop = "12px";
     riquadro.appendChild(nominativo);
+
+    var nascosto = crea("input"); nascosto.type = "hidden"; nascosto.id = "rubAltri";
+    riquadro.appendChild(nascosto);
+    var sezioneAltri = crea("div", "rub-altri");
+    sezioneAltri.appendChild(crea("div", "rub-t", "Altri destinatari"));
+    sezioneAltri.appendChild(crea("div", "rub-s", "Aggiungi qui gli uffici a cui la lettera va inviata oltre al primo. Quelli segnati \"per conoscenza\" escono in fondo, dopo la riga \"e, p.c.\"."));
+    var schede = crea("div");
+    sezioneAltri.appendChild(schede);
+    var aggiungi = crea("button", "bsmall", "+ Aggiungi un destinatario");
+    aggiungi.type = "button";
+    sezioneAltri.appendChild(aggiungi);
+    riquadro.appendChild(sezioneAltri);
 
     var anteprima = crea("div", "rub-a");
     anteprima.appendChild(crea("span", null, "Come uscirà nella lettera"));
@@ -315,14 +417,110 @@
       aggiorna();
     });
 
+    // ---- schede degli altri destinatari ----
+    var ultimoScritto = "";
+    function raccogli() {
+      var lista = [];
+      Array.prototype.forEach.call(schede.children, function (scheda) {
+        var c = scheda.querySelectorAll("input[data-campo]");
+        var voce = { pc: scheda.querySelector("input[type=checkbox]").checked };
+        Array.prototype.forEach.call(c, function (i) { voce[i.getAttribute("data-campo")] = i.value.trim(); });
+        lista.push(voce);
+      });
+      // Le schede ancora vuote restano a schermo ma non finiscono nel campo salvato.
+      var piene = lista.filter(function (a) { return a.area || a.servizio || a.indirizzo || a.nome; });
+      var testo = piene.length ? JSON.stringify(piene) : "";
+      if (testo === nascosto.value) return;
+      nascosto.value = testo; ultimoScritto = testo;
+      nascosto.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    function casellaScheda(nomeCampo, etichetta, segnaposto, valoreIniziale) {
+      var f = crea("div", "f");
+      var l = crea("label", null, etichetta);
+      var i = crea("input"); i.setAttribute("data-campo", nomeCampo); i.placeholder = segnaposto; i.autocomplete = "off"; i.value = valoreIniziale || "";
+      l.appendChild(i); f.appendChild(l);
+      // L'etichetta contiene il campo: cosi il clic sull'etichetta porta al campo senza bisogno di un id.
+      l.style.display = "flex"; l.style.flexDirection = "column"; l.style.gap = "5px";
+      return f;
+    }
+    function nuovaScheda(a) {
+      a = a || {};
+      var scheda = crea("div", "rub-c");
+      var testa = crea("div", "rub-ch");
+      testa.appendChild(crea("span", null, "Destinatario"));
+      var spunta = crea("label");
+      var casellaPc = crea("input"); casellaPc.type = "checkbox"; casellaPc.checked = a.pc === true;
+      spunta.appendChild(casellaPc); spunta.appendChild(document.createTextNode("Per conoscenza"));
+      testa.appendChild(spunta);
+      var via = crea("button", "bsmall", "Togli"); via.type = "button";
+      testa.appendChild(via);
+      scheda.appendChild(testa);
+
+      var cercaF = crea("div", "f");
+      var cercaI = crea("input"); cercaI.type = "search"; cercaI.autocomplete = "off";
+      cercaI.placeholder = "Cerca nella rubrica (nome o indirizzo), oppure scrivi le righe qui sotto";
+      cercaI.setAttribute("aria-label", "Cerca nella Rubrica Egrammata");
+      cercaF.appendChild(cercaI); scheda.appendChild(cercaF);
+      var trovati = crea("div", "rub-l"); scheda.appendChild(trovati);
+
+      var tre2 = crea("div", "g3");
+      tre2.appendChild(casellaScheda("area", "Area", "es. All'Area Urbanistica", a.area));
+      tre2.appendChild(casellaScheda("servizio", "Servizio / Ufficio", "es. Servizio Condono Edilizio", a.servizio));
+      tre2.appendChild(casellaScheda("indirizzo", "Indirizzo di protocollo", "es. 9.8.0.0.0", a.indirizzo));
+      scheda.appendChild(tre2);
+      scheda.appendChild(casellaScheda("nome", "Nominativo sotto il servizio (facoltativo)", "es. c.a. Dott. Mario Rossi", a.nome));
+
+      function mostraTrovati(voci, totale) {
+        while (trovati.firstChild) trovati.removeChild(trovati.firstChild);
+        voci.forEach(function (voce) {
+          var b = crea("button", "rub-v"); b.type = "button";
+          b.appendChild(crea("b", null, voce.n));
+          if (voce.x) b.appendChild(crea("i", null, "  ⚠ possibile struttura sospesa"));
+          b.appendChild(crea("small", null, ((voce.p || []).join(" › ") || "struttura di vertice") + "  ·  " + voce.c));
+          b.addEventListener("click", function () {
+            var r = righe(voce);
+            scheda.querySelector('[data-campo="area"]').value = r.area;
+            scheda.querySelector('[data-campo="servizio"]').value = r.servizio;
+            scheda.querySelector('[data-campo="indirizzo"]').value = r.indirizzo;
+            cercaI.value = ""; mostraTrovati([], 0); raccogli(); aggiorna();
+          });
+          trovati.appendChild(b);
+        });
+        if (totale > voci.length) trovati.appendChild(crea("div", "rub-n", "Altre " + (totale - voci.length) + " strutture: aggiungi una parola per restringere."));
+      }
+      cercaI.addEventListener("input", function (evento) {
+        evento.stopPropagation();
+        var r = cerca(dati.voci, cercaI.value, 6); mostraTrovati(r.trovate, r.totale);
+      });
+      scheda.addEventListener("input", function (evento) { if (evento.target !== cercaI) raccogli(); });
+      casellaPc.addEventListener("change", function () { raccogli(); aggiorna(); });
+      via.addEventListener("click", function () { schede.removeChild(scheda); raccogli(); aggiorna(); aggiungi.disabled = false; });
+      return scheda;
+    }
+    function ridisegnaSchede() {
+      while (schede.firstChild) schede.removeChild(schede.firstChild);
+      altriDa(nascosto.value).forEach(function (a) { schede.appendChild(nuovaScheda(a)); });
+      ultimoScritto = nascosto.value;
+      aggiungi.disabled = schede.children.length >= MAX_ALTRI;
+    }
+    aggiungi.addEventListener("click", function () {
+      if (schede.children.length >= MAX_ALTRI) return;
+      var scheda = nuovaScheda({});
+      schede.appendChild(scheda);
+      aggiungi.disabled = schede.children.length >= MAX_ALTRI;
+      scheda.querySelector("input[type=search]").focus();
+    });
+
     var firma = null;
     function aggiorna() {
+      // Una bozza ripresa o "Nuova pratica" cambiano il campo nascosto senza passare da qui.
+      if (nascosto.value !== ultimoScritto) ridisegnaSchede();
       var d = window.rubricaDestinatario();
       var abituale = (selUff.options[selUff.selectedIndex] || { value: "|" }).value.split("|");
       var area = d.attivo ? d.area : ((selArea.options[selArea.selectedIndex] || { value: "" }).value || "All'Area Sviluppo Economico");
       var servizio = d.attivo ? d.servizio : (abituale[0] || "");
       var indirizzo = d.attivo ? d.indirizzo : (abituale[1] || "");
-      var nuova = [d.attivo, area, servizio, indirizzo, d.nome].join("\u0001");
+      var nuova = [d.attivo, area, servizio, indirizzo, d.nome, nascosto.value].join("\u0001");
       if (nuova === firma) return;
       firma = nuova;
       [selArea, selUff].forEach(function (s) { s.disabled = d.attivo; s.style.opacity = d.attivo ? "0.45" : ""; });
@@ -335,6 +533,18 @@
       if (d.nome) linee.push(d.nome);
       linee.push("Indirizzo di protocollo " + (indirizzo || "—"));
       linee.forEach(function (l) { righeAnteprima.appendChild(crea("div", null, l)); });
+      var intestazionePc = false;
+      inOrdine(d.altri).forEach(function (a) {
+        var primaRiga = true;
+        function riga(testo, classe) {
+          if (!testo) return;
+          righeAnteprima.appendChild(crea("div", ((classe || "") + (primaRiga ? " stacco" : "")).trim() || null, testo));
+          primaRiga = false;
+        }
+        if (a.pc && !intestazionePc) { riga(E_PER_CONOSCENZA, "pc"); intestazionePc = true; primaRiga = false; }
+        riga(a.area); riga(a.servizio); riga(a.nome);
+        riga(a.indirizzo ? "Indirizzo di protocollo " + a.indirizzo : "");
+      });
       if (d.attivo && (!area || !indirizzo)) {
         righeAnteprima.appendChild(crea("div", "manca", "Manca " + (!area ? "l'Area" : "l'indirizzo di protocollo") + ": completa la riga prima di generare."));
       }

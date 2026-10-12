@@ -55,6 +55,11 @@ body .rub-v{background:var(--s2);border-color:var(--linea-forte);font-size:var(-
 body .rub-v small{font-size:var(--t1);color:var(--tx3)}
 body .rub-a{border-color:var(--linea-forte);border-radius:var(--r1)}
 body .rub-a span{font-size:var(--t1);color:var(--tx3)}
+body .rub-altri{border-top-color:var(--linea)}
+body .rub-c{background:var(--s1);border-color:var(--linea);border-radius:var(--r1)}
+body .rub-ch{font-size:var(--t3);color:var(--tx)}
+body .rub-ch label{font-size:var(--t2);color:var(--tx2)}
+body .rub-a div.pc{color:var(--tx3)}
 body .rub-a div{font-size:var(--t3);color:var(--tx)}
 
 /* Elementi presenti solo in alcuni moduli */
