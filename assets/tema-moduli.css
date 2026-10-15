@@ -68,6 +68,15 @@ body .drop:hover{border-color:var(--accento)}
 body .tpl-btn{background:var(--s2);color:var(--tx2);border:1px solid var(--linea-forte);font-size:var(--t2);border-radius:var(--r1)}
 body .tpl-btn.fav{background:var(--ok-tenue);border-color:var(--ok);color:var(--ok)}
 body .tpl-btn.favp{background:#1a1205;border-color:var(--avviso);color:var(--avviso)}
+body .tabs{display:flex;gap:4px;border-bottom:1px solid var(--linea);margin:0 0 16px;overflow-x:auto}
+body .tab{background:transparent;color:var(--tx3);border:0;border-bottom:2px solid transparent;margin-bottom:-1px;padding:10px 16px;min-height:44px;font-size:var(--t3);font-weight:600;cursor:pointer;white-space:nowrap}
+body .tab:hover{color:var(--tx)}
+body .tab.on{color:var(--accento);border-bottom-color:var(--accento)}
+body .pc-formula{background:var(--s2);border:1px solid var(--linea);border-radius:var(--r1);padding:12px 14px;font-size:var(--t2);color:var(--tx2);line-height:1.55}
+body .pc-formula p{margin:0 0 8px;text-align:justify}
+body .pc-formula p:last-child{margin-bottom:0}
+body .pc-formula .pc-esito{text-align:center;font-weight:700;letter-spacing:.06em;color:var(--tx)}
+body .pc-formula .pc-nota{color:var(--tx3);font-style:italic;text-align:left}
 body .checkitem,body .check-item{background:var(--s2);border-color:var(--linea-forte);border-radius:var(--r1);font-size:var(--t2);color:var(--tx2)}
 body .checkitem input,body .check-item input{min-height:0}
 body input[type="checkbox"],body input[type="radio"]{min-height:0;width:auto;accent-color:var(--accento)}

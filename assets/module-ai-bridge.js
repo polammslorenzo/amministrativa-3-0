@@ -232,11 +232,25 @@
     return String(value).padStart(2, "0");
   }
 
-  function applyExtractionFields(fields) {
+  // Le richieste di parere sui passi carrabili arrivano dalla Municipalita' con
+  // numero di pratica PC/anno/numero e oggetto "... per Nuovo Passo Carraio".
+  function richiestaPassoCarrabile(fields, extraction) {
+    if (/^\s*PC\s*\/\s*\d{4}\s*\//i.test(String(fields.praticaId || ""))) return true;
+    const e = extraction && typeof extraction === "object" ? extraction : {};
+    const testi = [e.sourceSummary, e.routeReason, e.practice && e.practice.subject].concat(Array.isArray(e.keyFacts) ? e.keyFacts : []);
+    return testi.some(function (t) { return /\bpass[oi]\s+carra(?:bil[ei]|i|io)\b/i.test(String(t || "")); });
+  }
+
+  // sceltaLibera: falso quando l'operatore ha gia' scelto la scheda e la scelta
+  // va rispettata (dati del modulo conservati dalla dashboard).
+  function applyExtractionFields(fields, extraction, sceltaLibera) {
     if (!fields || typeof fields !== "object") return 0;
     let count = 0;
     const current = moduleName();
     if (current === "edili") {
+      if (sceltaLibera !== false && typeof window.setTipoPratica === "function" && richiestaPassoCarrabile(fields, extraction)) {
+        window.setTipoPratica("pc", true);
+      }
       count += put("praticaId", fields.praticaId);
       count += put("richiedente", fields.richiedente);
       count += put("ubicazione", fields.ubicazione);
@@ -277,6 +291,8 @@
     // I campi nascosti tpl/esito pilotano pulsanti e sezioni visibili: put()
     // scrive il valore ma non aggiorna l'interfaccia, quindi lo schermo e il
     // documento generato possono divergere.
+    const tipo = document.getElementById("tipoPratica");
+    if (tipo && tipo.value && typeof window.setTipoPratica === "function") window.setTipoPratica(tipo.value);
     const tpl = document.getElementById("tpl");
     if (tpl && tpl.value && typeof window.setTpl === "function") window.setTpl(tpl.value);
     const esito = document.getElementById("esito");
@@ -296,7 +312,7 @@
     try { localStorage.setItem(MODULE_SESSION_KEY, String(message.practiceSession || "")); } catch (_error) {}
     const moduleData = message.moduleData && typeof message.moduleData === "object" ? message.moduleData : {};
     Object.keys(moduleData).forEach(function (id) { put(id, moduleData[id]); });
-    if (message.extraction && message.extraction.fields) applyExtractionFields(message.extraction.fields);
+    if (message.extraction && message.extraction.fields) applyExtractionFields(message.extraction.fields, message.extraction, !moduleData.tipoPratica);
     syncHiddenControls();
     schedulePracticeUpdate();
   }
@@ -468,10 +484,11 @@
       setBusy("bAI", "Analisi...", true);
       notify("L", "Analisi protetta del PDF in corso...");
       try {
-        const fields = await extract(selectedDocument);
-        const count = applyExtractionFields(fields);
+        const result = await callDashboardAgent("extractor", { document: selectedDocument });
+        const count = applyExtractionFields((result && result.fields) || {}, result);
         schedulePracticeUpdate();
-        notify("O", count ? "Estrazione completata — " + count + " campi rilevati" : "Nessun campo certo rilevato — compila manualmente");
+        const scheda = value("tipoPratica") === "pc" ? " · scheda Passi carrabili" : "";
+        notify("O", (count ? "Estrazione completata — " + count + " campi rilevati" : "Nessun campo certo rilevato — compila manualmente") + scheda);
       } catch (error) {
         notify("E", error.message);
       } finally {
