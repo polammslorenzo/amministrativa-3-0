@@ -102,12 +102,17 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
     <div style="font-size:16px;font-weight:600">Pareri Edilizi &nbsp;<span class="badge">U.O. SAN LORENZO</span></div>
     <div style="font-size:12px;color:#8a94a6;margin-top:2px">Amministrativa 2.0 — D.Lgs. 285/1992 / D.P.R. 495/1992</div>
   </div></div>
+  <div class="tabs" role="tablist" aria-label="Tipo di pratica">
+    <button type="button" class="tab on" role="tab" id="tabOS" aria-selected="true" onclick="setTipoPratica('os',true)">Occupazione suolo · lavori edili</button>
+    <button type="button" class="tab" role="tab" id="tabPC" aria-selected="false" onclick="setTipoPratica('pc',true)">Passi carrabili</button>
+  </div>
+  <input type="hidden" id="tipoPratica" value="os">
   <div id="msg" class="msg"></div>
   <div class="sec"><div class="sh">Tipo parere</div>
     <div class="tpl-bar">
       <button class="tpl-btn fav" onclick="setTpl('fav')" id="bFAV">&#10003; Favorevole</button>
       <button class="tpl-btn" onclick="setTpl('favp')" id="bFAVP" style="border-color:#2a2d38">&#9670; Fav. con Prescrizioni</button>
-      <button class="tpl-btn" onclick="setTpl('sfav')" id="bSFAV" style="border-color:#2a2d38">&#10007; Sfavorevole</button>
+      <button class="tpl-btn" onclick="setTpl('sfav')" id="bSFAV" style="border-color:#2a2d38">&#10007; <span id="lblSFAV">Sfavorevole</span></button>
     </div>
     <input type="hidden" id="tpl" value="fav">
   </div>
@@ -123,14 +128,17 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
       <div class="f"><label>Richiedente / Committente</label><input id="richiedente" placeholder="es. ASL NAPOLI 1 CENTRO"></div>
     </div>
     <div class="g2">
-      <div class="f"><label>Ubicazione cantiere</label><input id="ubicazione" placeholder="es. VIA MONFALCONE 42"></div>
-      <div class="f"><label>Periodo occupazione</label><input id="periodo" placeholder="es. 3 mesi"></div>
+      <div class="f"><label id="lblUbic">Ubicazione cantiere</label><input id="ubicazione" placeholder="es. VIA MONFALCONE 42"></div>
+      <div class="f" id="fPeriodo"><label>Periodo occupazione</label><input id="periodo" placeholder="es. 3 mesi"></div>
     </div>
+  </div>
+  <div class="sec" id="secPC" style="display:none"><div class="sh">Testo del parere · passo carrabile</div>
+    <div class="pc-formula" id="pcFormula"></div>
   </div>
 <div class="sec" id="secPres" style="display:none"><div class="sh">Prescrizioni aggiuntive</div>
     <div class="f"><textarea id="prescrizioni" rows="4" placeholder="Prescrizioni aggiuntive che verranno aggiunte dopo la formula di rito..."></textarea></div>
   </div>
-  <div class="sec" id="secMot" style="display:none"><div class="sh">Motivazione sfavorevole</div>
+  <div class="sec" id="secMot" style="display:none"><div class="sh"><span id="shMot">Motivazione sfavorevole</span></div>
     <div class="f"><textarea id="motivazione" rows="4" placeholder="Motivazione del parere sfavorevole..."></textarea></div>
   </div>
   <div class="sec"><div class="sh">Analisi AI (opzionale)</div>
@@ -216,7 +224,67 @@ document.getElementById('dz').ondrop = function(e){ e.preventDefault(); var f=e.
 function mostraMsg(t,s){ return msg(t,s); }
 function msg(t,s){ var el=document.getElementById('msg'); el.style.display='flex'; el.className='msg '+t; el.innerHTML=(t==='L'?'<div class="spin"></div>':t==='O'?'&#10003;':'&#10007;')+' <span>'+s+'</span>'; }
 
+// ===== Passi carrabili =====
+// Le richieste arrivano dalla Municipalita' 4 (pratiche PC/anno/numero). Il
+// parere ha due soli esiti: favorevole, con la formula di rito qui sotto, o
+// negativo, con la stessa apertura seguita dalla motivazione dell'operatore.
+var PC_TESTO={
+  favorevole:[
+    'In riferimento all’istanza indicata in oggetto e alla documentazione trasmessa, esperiti gli accertamenti di competenza e preso atto dello stato dei luoghi, per quanto di competenza di questa U.O. non si rilevano motivi ostativi al rilascio della concessione per l’istituzione del passo carrabile richiesto, fatti salvi i diritti di terzi, le competenze degli ulteriori Uffici interessati e il rispetto delle prescrizioni previste dal Codice della Strada, dal relativo Regolamento di esecuzione e dalla vigente normativa comunale.',
+    'Resta inteso che la realizzazione e l’utilizzo del passo carrabile dovranno avvenire nel rispetto delle dimensioni e delle caratteristiche indicate negli elaborati presentati e senza determinare situazioni di pericolo o intralcio alla circolazione veicolare e pedonale.'
+  ],
+  negativo:'In riferimento all’istanza indicata in oggetto e alla documentazione trasmessa, esperiti gli accertamenti di competenza e preso atto dello stato dei luoghi, per quanto di competenza di questa U.O. si rilevano motivi ostativi al rilascio della concessione per l’istituzione del passo carrabile richiesto, per le seguenti motivazioni:'
+};
+function isPassoCarrabile(){ return document.getElementById('tipoPratica').value==='pc'; }
+function setTipoPratica(v,daUtente){
+  var pc=v==='pc', el=document.getElementById('tipoPratica');
+  el.value=pc?'pc':'os';
+  [['tabOS',!pc],['tabPC',pc]].forEach(function(x){ var b=document.getElementById(x[0]); b.classList.toggle('on',x[1]); b.setAttribute('aria-selected',x[1]?'true':'false'); });
+  document.getElementById('bFAVP').style.display=pc?'none':'';
+  document.getElementById('lblSFAV').textContent=pc?'Negativo':'Sfavorevole';
+  document.getElementById('lblUbic').textContent=pc?'Ubicazione passo carrabile':'Ubicazione cantiere';
+  document.getElementById('fPeriodo').style.display=pc?'none':'';
+  document.getElementById('praticaId').placeholder=pc?'es. PC/2026/35':'es. ED/2026/23';
+  document.getElementById('ubicazione').placeholder=pc?'es. VIA CESARE ROSAROLL 108':'es. VIA MONFALCONE 42';
+  document.getElementById('shMot').textContent=pc?'Motivazione del parere negativo':'Motivazione sfavorevole';
+  document.getElementById('motivazione').placeholder=pc?'Perché il parere è negativo. Ogni riga diventa un paragrafo del parere.':'Motivazione del parere sfavorevole...';
+  if(daUtente){
+    if(pc) destinatarioMunicipalita();
+    // Il campo nascosto non genera eventi da solo: senza questo la bozza e la dashboard non saprebbero della scheda scelta.
+    el.dispatchEvent(new Event('change',{bubbles:true}));
+  }
+  setTpl(document.getElementById('tpl').value);
+}
+// Le richieste di parere sui passi carrabili arrivano dalla U.O. Attivita' tecniche
+// della Municipalita' 4: la lettera le risponde li', se l'operatore non ha gia' scelto.
+function destinatarioMunicipalita(){
+  var a=document.getElementById('destA'), u=document.getElementById('destU');
+  if(a.value||(u.value&&u.value!=='|'))return;
+  a.value='Alla Direzione Municipalità 4';
+  u.value='U.O. Attività tecniche - Municipalità 4|25.0.6.0.0';
+  [a,u].forEach(function(s){ s.dispatchEvent(new Event('change',{bubbles:true})); });
+}
+function aggiornaTestoPC(){
+  var pc=isPassoCarrabile(), box=document.getElementById('pcFormula');
+  document.getElementById('secPC').style.display=pc?'block':'none';
+  box.textContent='';
+  if(!pc)return;
+  var neg=document.getElementById('tpl').value==='sfav';
+  var righe=[neg?'PARERE NEGATIVO':'PARERE FAVOREVOLE'].concat(neg?[PC_TESTO.negativo]:PC_TESTO.favorevole);
+  righe.forEach(function(t,i){ var p=document.createElement('p'); p.textContent=t; if(i===0)p.className='pc-esito'; box.appendChild(p); });
+  if(neg){ var n=document.createElement('p'); n.className='pc-nota'; n.textContent='Segue la motivazione che scrivi qui sotto.'; box.appendChild(n); }
+}
+// Un paragrafo del modello ripetuto una volta per ogni testo, con la stessa formattazione.
+function _paragrafiAlPosto(xml,segnaposto,testi){
+  return xml.replace(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g,function(p){
+    if(_xmlPlain(p).indexOf(segnaposto)<0)return p;
+    return testi.map(function(t){ return rf(p,segnaposto,t); }).join('');
+  });
+}
+function righeTesto(s){ return String(s||'').split(/\r?\n/).map(function(r){return r.trim();}).filter(Boolean); }
+
 function setTpl(v){
+  if(v==='favp'&&isPassoCarrabile())v='fav';
   document.getElementById('tpl').value=v;
   document.getElementById('bFAV').className='tpl-btn'+(v==='fav'?' fav':'');
   document.getElementById('bFAVP').className='tpl-btn'+(v==='favp'?' favp':'');
@@ -225,6 +293,7 @@ function setTpl(v){
   document.getElementById('bSFAV').style.borderColor=v==='sfav'?'#f87171':'#2a2d38';
   document.getElementById('secPres').style.display=v==='favp'?'block':'none';
   document.getElementById('secMot').style.display=v==='sfav'?'block':'none';
+  aggiornaTestoPC();
 }
 
 function togLettera(){
@@ -270,9 +339,10 @@ function rf(xml,o,n){
 async function genera(){
   if(!validateRequired(['pgR','dataR','praticaId','richiedente','ubicazione','dataNap']))return;
   var tpl=document.getElementById('tpl').value;
+  var pc=isPassoCarrabile();
   var pres=document.getElementById('prescrizioni').value.trim();
   var mot=document.getElementById('motivazione').value.trim();
-  if(tpl==='sfav'&&!mot){ msg('E','Inserisci la motivazione sfavorevole'); return; }
+  if(tpl==='sfav'&&!mot){ msg('E',pc?'Scrivi perché il parere è negativo':'Inserisci la motivazione sfavorevole'); return; }
   var btn=document.getElementById('bGen'); btn.disabled=true; btn.textContent='Generazione...';
   msg('L','Creazione DOCX...');
   try{
@@ -285,10 +355,26 @@ async function genera(){
     var dataN=document.getElementById('dataNap').value.trim();
     var ags=['ag1','ag2','ag3','ag4'].map(function(id){var s=document.getElementById(id);return s.options[s.selectedIndex].text;}).filter(function(t){return t!=='--';}).join(' - ');
 
-    var zip=await JSZip.loadAsync(B64[tpl],{base64:true});
+    // Il passo carrabile parte dal modello sfavorevole, che sotto il titolo ha un solo paragrafo da riempire.
+    var zip=await JSZip.loadAsync(B64[pc?'sfav':tpl],{base64:true});
     var xml=await zip.file('word/document.xml').async('string');
 
-    if(tpl==='fav'||tpl==='favp'){
+    if(pc){
+      xml=rf(xml,'PG/2026/310129',pg);
+      xml=xml.split('<w:t>   del   11.03.26</w:t>').join('<w:t>   del   '+xe(dataR)+'</w:t>');
+      xml=xml.split('<w:t xml:space="preserve">   del   11.03.26</w:t>').join('<w:t xml:space="preserve">   del   '+xe(dataR)+'</w:t>');
+      xml=rf(xml,'ED/2026/23',pratica);
+      xml=rf(xml,'ASL NAPOLI 1 CENTRO — U.O.C. MANUTENZIONE',rich);
+      xml=rf(xml,'Ubicazione cantiere: ','Ubicazione passo carrabile: ');
+      xml=rf(xml,'VIA MONFALCONE 42',ubic);
+      // Il passo carrabile e' una concessione permanente: la riga del periodo non ha senso.
+      xml=_removeParagraphContaining(xml,'Periodo occupazione:');
+      xml=rf(xml,'Rilascio parere per lavori edili','Rilascio parere occupazione suolo pubblico per passo carrabile');
+      xml=rf(xml,'PARERE SFAVOREVOLE',tpl==='sfav'?'PARERE NEGATIVO':'PARERE FAVOREVOLE');
+      xml=_paragrafiAlPosto(xml,'MOTIVAZIONE_PLACEHOLDER',tpl==='sfav'?[PC_TESTO.negativo].concat(righeTesto(mot)):PC_TESTO.favorevole);
+      xml=rf(xml,'Napoli, li  11 marzo 2026','Napoli, li  '+dataN);
+      xml=rf(xml,'A.C. FERRARA 3015',ags);
+    } else if(tpl==='fav'||tpl==='favp'){
       xml=rf(xml,'PG/2026/310129',pg);
       xml=xml.split('<w:t>   del   11.03.26</w:t>').join('<w:t>   del   '+xe(dataR)+'</w:t>');
       xml=xml.split('<w:t xml:space="preserve">   del   11.03.26</w:t>').join('<w:t xml:space="preserve">   del   '+xe(dataR)+'</w:t>');
@@ -317,7 +403,7 @@ async function genera(){
     }
 
     xml=polishDocumentXml(xml,APP_DOC_KIND); await polishDocxStyles(zip); zip.file('word/document.xml',xml);
-    var _xmlRel=xml; var _nomeFile=(window.nomeFilePratica?window.nomeFilePratica(pg,'ed',(document.getElementById('rich')||{}).value):null);
+    var _xmlRel=xml; var _nomeFile=(window.nomeFilePratica?window.nomeFilePratica(pg,pc?'pc':'ed',rich):null);
     var _reviewItems=letteraOn?[]:[{zip:zip,filename:(_nomeFile||'relazione')+'.docx'}];
 
     if(letteraOn){
@@ -339,7 +425,7 @@ async function genera(){
       xmlL=xmlL.split('<w:t xml:space="preserve">   del   28/03/26</w:t>').join('<w:t xml:space="preserve">   del   '+xe(dataI)+'</w:t>');
       xmlL=rf(xmlL,'PG/2026/301627',pgI?'PG/'+protocolYear()+'/'+pgI:pratica);
       xmlL=rf(xmlL,'c_f839/Comune_di_Napoli 1176287/17-12-2025',pratica);
-      xmlL=rf(xmlL,'Trasmissione atti — CONTROLLO POSTEGGIO MERCATO CARAMANICO','Trasmissione atti — PARERE OCCUPAZIONI SUOLO PUBBLICO - '+rich);
+      xmlL=rf(xmlL,'Trasmissione atti — CONTROLLO POSTEGGIO MERCATO CARAMANICO','Trasmissione atti — '+(pc?'PARERE PASSO CARRABILE - ':'PARERE OCCUPAZIONI SUOLO PUBBLICO - ')+rich);
       xmlL=rf(xmlL,'Riscontro accertamento','Trasmissione parere');
       xmlL=rf(xmlL,'CRISTIANO VINCENZO',rich); xmlL=rf(xmlL,'POSTEGGIO 269 - INT MERCATO',ubic);
       xmlL=rf(xmlL,'Si trasmette quanto accertato in merito all’oggetto da ASS BATTAGLIA 651S.','Si trasmette quanto accertato in merito all’oggetto da '+xe(ags)+'.');
@@ -378,7 +464,7 @@ async function genera(){
 }
 
 // ===== Migliorie operative v2.1 =====
-var APP_VERSION='3.4 - titoli trasmissione a sinistra';
+var APP_VERSION='3.5 - scheda passi carrabili';
 var MAX_FILE_MB=12;
 function pgYearOf(raw){var m=String(raw||'').match(/^\s*PG\/(\d{4})\//i);return m?m[1]:protocolYear();}
 function protocolYear(){var e=document.getElementById('annoProt');return e&&/^\d{4}$/.test(e.value)?e.value:String(new Date().getFullYear());}
@@ -396,7 +482,7 @@ function initOperationalEnhancements(){
 }
 function storageKey(){return 'amm20_'+location.pathname.split('/').pop()+'_draft';}
 function saveDraft(show){try{var d={};document.querySelectorAll('input[id],select[id],textarea[id]').forEach(function(e){if(e.type!=='file')d[e.id]=e.value;});localStorage.setItem(storageKey(),JSON.stringify({ts:Date.now(),data:d}));if(show&&typeof mostraMsg==='function')mostraMsg('O','Bozza salvata sul dispositivo');}catch(e){}}
-function loadDraft(show){try{var x=JSON.parse(localStorage.getItem(storageKey())||'null');if(!x||Date.now()-x.ts>7*864e5)return;Object.keys(x.data||{}).forEach(function(id){var e=document.getElementById(id);if(e)e.value=x.data[id];});if(typeof setEsito==='function'&&document.getElementById('esito'))setEsito(document.getElementById('esito').value);if(show&&typeof mostraMsg==='function')mostraMsg('O','Bozza ripristinata');}catch(e){}}
+function loadDraft(show){try{var x=JSON.parse(localStorage.getItem(storageKey())||'null');if(!x||Date.now()-x.ts>7*864e5)return;Object.keys(x.data||{}).forEach(function(id){var e=document.getElementById(id);if(e)e.value=x.data[id];});if(typeof setEsito==='function'&&document.getElementById('esito'))setEsito(document.getElementById('esito').value);if(typeof setTipoPratica==='function'&&document.getElementById('tipoPratica'))setTipoPratica(document.getElementById('tipoPratica').value);if(show&&typeof mostraMsg==='function')mostraMsg('O','Bozza ripristinata');}catch(e){}}
 function clearDraft(){localStorage.removeItem(storageKey());if(typeof mostraMsg==='function')mostraMsg('O','Bozza cancellata');}
 function validateRequired(ids){var bad=[];ids.forEach(function(id){var e=document.getElementById(id);if(e&&!String(e.value||'').trim()){e.classList.add('invalid');bad.push(e);}});if(bad.length){bad[0].scrollIntoView({behavior:'smooth',block:'center'});if(typeof mostraMsg==='function')mostraMsg('E','Compila i campi obbligatori evidenziati');return false;}return true;}
 function checkFileSize(file){if(file&&file.size>MAX_FILE_MB*1024*1024){if(typeof mostraMsg==='function')mostraMsg('E','File troppo grande: massimo '+MAX_FILE_MB+' MB');return false;}return true;}
@@ -482,7 +568,7 @@ function _normalizeHeadingText(s){return String(s||'').replace(/\s+/g,' ').trim(
 function _isFreeHeadingText(s){
   var t=_normalizeHeadingText(s);
   if(!t || t.length>110)return false;
-  return /^(ESITO(?: SOPRALLUOGO| ACCERTAMENTO)?|PARERE(?: FAVOREVOLE| SFAVOREVOLE| CON PRESCRIZIONI| FAVOREVOLE CON PRESCRIZIONI)?|FAVOREVOLE(?: CON PRESCRIZIONI)?|SFAVOREVOLE|CONFORME|NON CONFORME|IRREGOLARIT[AÀ] PARZIALI|SORVEGLIABILIT[AÀ](?: DEI LOCALI)?|PROVVEDIMENTI(?: ADOTTATI)?)$/.test(t);
+  return /^(ESITO(?: SOPRALLUOGO| ACCERTAMENTO)?|PARERE(?: FAVOREVOLE| SFAVOREVOLE| NEGATIVO| CON PRESCRIZIONI| FAVOREVOLE CON PRESCRIZIONI)?|FAVOREVOLE(?: CON PRESCRIZIONI)?|SFAVOREVOLE|NEGATIVO|CONFORME|NON CONFORME|IRREGOLARIT[AÀ] PARZIALI|SORVEGLIABILIT[AÀ](?: DEI LOCALI)?|PROVVEDIMENTI(?: ADOTTATI)?)$/.test(t);
 }
 function _removeEmptyAndUnboxHeadingTables(xml){
   return xml.replace(/<w:tbl(?:\s[^>]*)?>[\s\S]*?<\/w:tbl>/g,function(tbl){

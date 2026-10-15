@@ -190,3 +190,47 @@ test("nuova pratica azzera estrazione, redazione e bozze salvate", () => {
   assert.equal(storage.has("amm20_riscontro-esposto.html_draft"), false);
   assert.equal(childMessages.at(-1).type, "module-reset");
 });
+
+test("pareri edili: una richiesta di passo carrabile apre da sola la scheda Passi carrabili", () => {
+  function avvia(extraction, moduleData) {
+    const elements = new Map();
+    for (const id of ["praticaId", "richiedente", "ubicazione", "periodo", "motivazione", "prescrizioni", "tpl", "tipoPratica"]) {
+      elements.set(id, { value: id === "tpl" ? "fav" : id === "tipoPratica" ? "os" : "", dispatchEvent() {} });
+    }
+    const schede = [];
+    let listener;
+    const parent = { postMessage() {} };
+    const windowObject = {
+      parent,
+      addEventListener(type, fn) { if (type === "message") listener = fn; },
+      setTpl() {},
+      setTipoPratica(v) { schede.push(v); elements.get("tipoPratica").value = v; },
+    };
+    const context = vm.createContext({
+      window: windowObject,
+      document: { getElementById: (id) => elements.get(id) || null },
+      location: { pathname: "/modules/pareri-edili.html", protocol: "file:" },
+      localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+      Event: class Event { constructor(type) { this.type = type; } },
+      FileReader: class FileReader {},
+      Promise, Map, Date, setTimeout, clearTimeout, console,
+    });
+    vm.runInContext(fs.readFileSync(path.join(root, "assets/module-ai-bridge.js"), "utf8"), context);
+    listener({
+      source: parent,
+      data: { channel: "ADMIN3_BRIDGE", type: "module-hydrate", module: "edili", practiceSession: "s1", extraction, moduleData },
+    });
+    return { scheda: elements.get("tipoPratica").value, schede };
+  }
+
+  // Numero di pratica della Municipalita' per i passi carrabili.
+  assert.equal(avvia({ fields: { praticaId: "PC/2026/35", ubicazione: "Via Cesare Rosaroll n. 108" } }, {}).scheda, "pc");
+  // Oggetto della richiesta, anche quando il numero di pratica manca.
+  assert.equal(avvia({ fields: { praticaId: "" }, sourceSummary: "Occupazione di Suolo Pubblico per Nuovo Passo Carraio in Via Cesare Rosaroll." }, {}).scheda, "pc");
+  // Una pratica edilizia ordinaria resta sulla scheda dell'occupazione suolo.
+  assert.equal(avvia({ fields: { praticaId: "ED/2026/23" }, sourceSummary: "Occupazione suolo per lavori edili." }, {}).scheda, "os");
+  // Se l'operatore ha gia' scelto la scheda, la scelta resta.
+  const scelta = avvia({ fields: { praticaId: "PC/2026/35" } }, { tipoPratica: "os" });
+  assert.equal(scelta.scheda, "os");
+  assert.equal(scelta.schede.includes("pc"), false);
+});
