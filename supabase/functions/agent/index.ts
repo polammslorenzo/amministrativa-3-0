@@ -1,5 +1,6 @@
 const MODULES = ["edili", "esposto", "sorvegliabilita", "ricettive", "nota"] as const;
 const AGENTS = ["extractor", "writer"] as const;
+const WRITER_MODEL = "gpt-6-astra";
 
 type ModuleName = (typeof MODULES)[number];
 type RequestedModule = ModuleName | "auto";
@@ -388,7 +389,7 @@ function targetInstruction(payload: Record<string, unknown>): string[] {
 
 function writerRequest(moduleName: ModuleName, payload: Record<string, unknown>) {
   return {
-    model: undefined,
+    model: WRITER_MODEL,
     store: false,
     reasoning: { effort: "low" },
     max_output_tokens: 4000,
@@ -553,7 +554,7 @@ async function callOpenAI(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 50_000);
   try {
-    requestBody.model = options.openaiModel;
+    requestBody.model ||= options.openaiModel;
     const response = await options.fetchImpl("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
