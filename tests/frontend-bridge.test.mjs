@@ -234,3 +234,77 @@ test("pareri edili: una richiesta di passo carrabile apre da sola la scheda Pass
   assert.equal(scelta.scheda, "os");
   assert.equal(scelta.schede.includes("pc"), false);
 });
+
+test("riscontro nota: finche' la funzione Supabase non conosce il percorso, si ripiega sull'esposto", async () => {
+  const richieste = [];
+  let rispostaErrore = { status: 400, code: "INVALID_MODULE" };
+  const windowObject = { ADMIN3_CONFIG: { AI_AGENT_URL: "https://example.supabase.co/functions/v1/agent" }, addEventListener() {} };
+  const context = vm.createContext({
+    window: windowObject,
+    document: { getElementById: () => null },
+    localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+    fetch: async (_url, init) => {
+      const body = JSON.parse(init.body);
+      richieste.push(body.module);
+      if (body.module === "nota") {
+        return new Response(JSON.stringify({ ok: false, error: { code: rispostaErrore.code, message: "x" } }), { status: rispostaErrore.status, headers: { "Content-Type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ ok: true, module: body.module, fields: { pgEsposto: "948424" } }), { status: 200, headers: { "Content-Type": "application/json" } });
+    },
+    Response, Math, Date, console,
+  });
+  vm.runInContext(fs.readFileSync(path.join(root, "assets/workflow.js"), "utf8"), context);
+
+  const risultato = await windowObject.ADMIN3.callAgent("extractor", { sourceText: "nota" }, "nota");
+  assert.deepEqual(richieste, ["nota", "esposto"]);
+  assert.equal(risultato.module, "nota");
+  assert.equal(risultato.fields.pgEsposto, "948424");
+
+  // Ogni altro errore resta un errore: il ripiego non nasconde i guasti veri.
+  richieste.length = 0;
+  rispostaErrore = { status: 503, code: "OPENAI_UNAVAILABLE" };
+  await assert.rejects(windowObject.ADMIN3.callAgent("writer", { draft: "x" }, "nota"), /503/);
+  assert.deepEqual(richieste, ["nota"]);
+});
+
+test("riscontro nota: il modulo compila i campi anche con i nomi dell'esposto", () => {
+  const elements = new Map();
+  for (const id of ["pgN", "annoN", "dataNota", "mitt", "ogg", "via", "interessato", "richiesta"]) {
+    elements.set(id, { value: "", dispatchEvent() {} });
+  }
+  let listener, destinatario = 0;
+  const parent = { postMessage() {} };
+  const windowObject = {
+    parent,
+    addEventListener(type, fn) { if (type === "message") listener = fn; },
+    destinatarioDaMittente() { destinatario += 1; },
+  };
+  const context = vm.createContext({
+    window: windowObject,
+    document: { getElementById: (id) => elements.get(id) || null },
+    location: { pathname: "/modules/riscontro-nota.html", protocol: "file:" },
+    localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+    Event: class Event { constructor(type) { this.type = type; } },
+    FileReader: class FileReader {},
+    Promise, Map, Date, setTimeout, clearTimeout, console,
+  });
+  vm.runInContext(fs.readFileSync(path.join(root, "assets/module-ai-bridge.js"), "utf8"), context);
+  listener({
+    source: parent,
+    data: {
+      channel: "ADMIN3_BRIDGE", type: "module-hydrate", module: "nota", practiceSession: "s1", moduleData: {},
+      extraction: {
+        practice: { date: "11/09/2026" },
+        sourceSummary: "Il SUAP chiede se nel chiosco si vendono quotidiani e chi lo gestisce.",
+        fields: { pgEsposto: "948424", annoEsposto: "2026", oggetto: "Richiesta controlli chiosco edicola", via: "Piazza L. Miraglia", mittente: "Servizio SUAP" },
+      },
+    },
+  });
+  assert.equal(elements.get("pgN").value, "948424");
+  assert.equal(elements.get("annoN").value, "2026");
+  assert.equal(elements.get("dataNota").value, "11.09.2026");
+  assert.equal(elements.get("via").value, "Piazza L. Miraglia");
+  assert.equal(elements.get("mitt").value, "Servizio SUAP");
+  assert.match(elements.get("richiesta").value, /chiosco/);
+  assert.equal(destinatario, 1);
+});

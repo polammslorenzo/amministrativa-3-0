@@ -1,7 +1,7 @@
 window.ADMIN3 = (() => {
   "use strict";
 
-  const MODULES = ["edili", "esposto", "sorvegliabilita", "ricettive"];
+  const MODULES = ["edili", "esposto", "sorvegliabilita", "ricettive", "nota"];
   const AGENTS = ["extractor", "writer"];
   const EMPTY_PRACTICE = { id: "", subject: "", location: "", protocol: "", date: "", notes: "" };
   const DRAFT_KEYS = [
@@ -9,6 +9,7 @@ window.ADMIN3 = (() => {
     "amm20_riscontro-esposto.html_draft",
     "amm20_sorvegliabilita.html_draft",
     "amm20_strutture-ricettive.html_draft",
+    "amm20_riscontro-nota.html_draft",
   ];
 
   function frameTargetOrigin() {
@@ -241,7 +242,24 @@ window.ADMIN3 = (() => {
     return legacy + "/agent";
   }
 
+  // Un modulo nuovo resta inutilizzabile finche' la funzione Supabase non viene
+  // ripubblicata: quella in linea risponde INVALID_MODULE. Nel frattempo si usa
+  // il percorso piu' vicino; il modulo legge anche i nomi dei suoi campi.
+  const RIPIEGO = { nota: "esposto" };
+
   async function callAgent(agent, payload, moduleOverride) {
+    const moduleName = moduleOverride || state.module;
+    try {
+      return await chiamaServer(agent, payload, moduleName);
+    } catch (error) {
+      if (!RIPIEGO[moduleName] || error.code !== "INVALID_MODULE") throw error;
+      const result = await chiamaServer(agent, payload, RIPIEGO[moduleName]);
+      if (result && typeof result === "object") result.module = moduleName;
+      return result;
+    }
+  }
+
+  async function chiamaServer(agent, payload, moduleName) {
     const endpoint = agentUrl();
     if (!endpoint) throw new Error("Backend AI non configurato. La build pubblica non contiene chiavi API.");
     const headers = { "Content-Type": "application/json" };
@@ -252,20 +270,23 @@ window.ADMIN3 = (() => {
       response = await fetch(endpoint, {
         method: "POST",
         headers,
-        body: JSON.stringify({ agent, module: moduleOverride || state.module, payload }),
+        body: JSON.stringify({ agent, module: moduleName, payload }),
       });
     } catch (_error) {
       throw new Error("Connessione al backend non riuscita. Verifica la connessione Internet e usa la build aggiornata.");
     }
     if (!response.ok) {
-      let detail = "";
+      let detail = "", code = "";
       try {
         const problem = await response.json();
         detail = problem && problem.error && problem.error.message || "";
+        code = problem && problem.error && problem.error.code || "";
       } catch (_error) {
         // Mantiene un messaggio comprensibile anche per risposte non JSON.
       }
-      throw new Error("Errore backend AI (" + response.status + ")" + (detail ? ": " + detail : ""));
+      const error = new Error("Errore backend AI (" + response.status + ")" + (detail ? ": " + detail : ""));
+      error.code = code;
+      throw error;
     }
     return await response.json();
   }
@@ -285,6 +306,7 @@ window.ADMIN3 = (() => {
       esposto: { id: "pgE", subject: "ogg", location: "via", protocol: "pgR" },
       sorvegliabilita: { id: "pgRif", subject: "tit", location: "via", protocol: "protSUAP" },
       ricettive: { id: "pgRif", subject: "nomeStruttura", location: "via", protocol: "protSUAP" },
+      nota: { id: "pgN", subject: "ogg", location: "via", protocol: "pgR" },
     };
     const mapping = mappings[moduleName] || {};
     for (const [target, source] of Object.entries(mapping)) {

@@ -6,6 +6,7 @@ Build GitHub-ready con backend OpenAI lato server. Include esclusivamente:
 - Riscontro Esposto (`esposto`)
 - Sorvegliabilità (`sorvegliabilita`)
 - Strutture Ricettive (`ricettive`)
+- Riscontro Nota SUAP / Altri Enti (`nota`): risposte alle note con cui altri uffici comunali o altri enti chiedono controlli, sopralluoghi o informazioni
 
 Suolo Pubblico non è incluso e non è stato modificato.
 
@@ -13,7 +14,7 @@ Suolo Pubblico non è incluso e non è stato modificato.
 
 Il browser carica l'app statica da GitHub Pages e invia le richieste a una Supabase Edge Function chiamata `agent`. Solo la funzione legge `OPENAI_API_KEY` dai secret Supabase e chiama la Responses API di OpenAI.
 
-I quattro moduli operativi sono caricati in un iframe. Quando l'app è aperta direttamente da disco (`file://`), Chrome assegna origini opache distinte alla dashboard e al modulo: per questo la comunicazione usa `postMessage` e non accede direttamente agli oggetti JavaScript della finestra principale. La dashboard accetta richieste soltanto dal proprio iframe.
+I moduli operativi sono caricati in un iframe. Quando l'app è aperta direttamente da disco (`file://`), Chrome assegna origini opache distinte alla dashboard e al modulo: per questo la comunicazione usa `postMessage` e non accede direttamente agli oggetti JavaScript della finestra principale. La dashboard accetta richieste soltanto dal proprio iframe.
 
 La chiave OpenAI non deve mai essere inserita in `config.js`, nei moduli HTML, nel repository o nella build GitHub Pages.
 
@@ -130,7 +131,9 @@ Project ref: xebhjdqufgdekxcoebiy
 Edge Function: https://xebhjdqufgdekxcoebiy.supabase.co/functions/v1/agent
 ```
 
-La funzione `agent` è pubblicata, il secret `OPENAI_API_KEY` è configurato lato server e `config.js` contiene già l'URL completo. Non serve ripetere il deploy per usare questa build.
+La funzione `agent` è pubblicata, il secret `OPENAI_API_KEY` è configurato lato server e `config.js` contiene già l'URL completo.
+
+Il percorso `nota` (Riscontro Nota SUAP / Altri Enti) è stato aggiunto dopo l'ultima pubblicazione della funzione. Finché la funzione non viene ripubblicata con il nuovo `supabase/functions/agent/index.ts`, il server risponde `INVALID_MODULE` e la dashboard ripiega da sola sul percorso `esposto`: il modulo funziona, ma l'Estrattore non restituisce i campi propri della nota (data, attività interessata, cosa chiede la nota, che viene presa dalla sintesi) e l'instradamento automatico dalla dashboard non propone mai il nuovo percorso. Dopo la ripubblicazione il ripiego non scatta più.
 
 La chiave creata da Codex è inoltre conservata localmente fuori dallo ZIP e non è presente nel repository o nella build GitHub Pages.
 

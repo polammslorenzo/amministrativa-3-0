@@ -1,4 +1,4 @@
-const MODULES = ["edili", "esposto", "sorvegliabilita", "ricettive"] as const;
+const MODULES = ["edili", "esposto", "sorvegliabilita", "ricettive", "nota"] as const;
 const AGENTS = ["extractor", "writer"] as const;
 
 type ModuleName = (typeof MODULES)[number];
@@ -27,6 +27,7 @@ const MODULE_LABELS: Record<ModuleName, string> = {
   esposto: "Riscontro Esposto",
   sorvegliabilita: "Sorvegliabilità",
   ricettive: "Strutture Ricettive",
+  nota: "Riscontro Nota SUAP / Altri Enti",
 };
 
 const MODULE_ROUTING_GUIDE: Record<ModuleName, string> = {
@@ -34,6 +35,7 @@ const MODULE_ROUTING_GUIDE: Record<ModuleName, string> = {
   esposto: "esposti, reclami o segnalazioni di cittadini ai quali occorre dare riscontro",
   sorvegliabilita: "richieste SUAP sulla sorvegliabilità di esercizi o locali aperti al pubblico",
   ricettive: "strutture ricettive, B&B, affittacamere, case vacanze, locazioni brevi e relativi controlli",
+  nota: "note e richieste di altri uffici comunali (SUAP, Area Entrate, Patrimonio e simili) o di altri enti (NAS, ASL, Carabinieri e simili) che chiedono a questa U.O. controlli, sopralluoghi, verifiche o informazioni e che non sono esposti di cittadini, pareri edilizi, sorvegliabilità o strutture ricettive",
 };
 
 const EXTRACTOR_FIELDS: Record<ModuleName, Record<string, unknown>> = {
@@ -71,6 +73,16 @@ const EXTRACTOR_FIELDS: Record<ModuleName, Record<string, unknown>> = {
     titolare: { type: "string" },
     nomeStruttura: { type: "string" },
   },
+  nota: {
+    pgNota: { type: "string" },
+    annoNota: { type: "string" },
+    dataNota: { type: "string" },
+    mittente: { type: "string" },
+    oggetto: { type: "string" },
+    ubicazione: { type: "string" },
+    interessato: { type: "string" },
+    richiesta: { type: "string" },
+  },
 };
 
 const ALL_EXTRACTOR_FIELDS = Object.assign({}, ...Object.values(EXTRACTOR_FIELDS));
@@ -84,6 +96,8 @@ const MODULE_EXTRACTOR_INSTRUCTIONS: Record<ModuleName, string> = {
     "Estrai esclusivamente i riferimenti della richiesta SUAP: PG, data, protocollo SUAP, indirizzo del locale e titolare/denominazione.",
   ricettive:
     "Estrai esclusivamente i riferimenti della pratica ricettiva: PG, data, protocollo SUAP, indirizzo, titolare/gestore e denominazione della struttura.",
+  nota:
+    "Estrai i riferimenti della nota ricevuta: numero di PG e anno, data, ufficio o ente mittente (area, servizio, unita' operativa), oggetto come scritto nella nota, ubicazione dei luoghi da controllare, attivita' o soggetto interessato (insegna, ditta, titolare) e, in richiesta, l'elenco sintetico e fedele di cosa la nota chiede di verificare o di comunicare. Non rispondere alla nota e non valutare.",
 };
 
 const MODULE_WRITER_INSTRUCTIONS: Record<ModuleName, string> = {
@@ -95,6 +109,8 @@ const MODULE_WRITER_INSTRUCTIONS: Record<ModuleName, string> = {
     "Formalizza il testo relativo alla sorvegliabilità. Se la non conformità è indicata nei dati, descrivi soltanto i motivi forniti; non aggiungere violazioni o conclusioni.",
   ricettive:
     "Formalizza l'accertamento svolto presso la struttura ricettiva. Riporta soltanto quanto risulta dai dati: conformita' o difformita' rispetto a quanto dichiarato, adempimenti riscontrati, presenze constatate nel corso del sopralluogo. Non elencare provvedimenti: quelli hanno un campo loro.",
+  nota:
+    "Formalizza il riscontro a una nota con cui un altro ufficio comunale o un altro ente ha chiesto a questa U.O. controlli, sopralluoghi o informazioni. Non e' un esposto di un cittadino: non chiamarlo esposto. Rispondi ai quesiti della nota soltanto con quanto indicato dall'operatore, nello stesso ordine in cui la nota li pone, in tono istituzionale e, se coerente con la bozza, in terza persona plurale.",
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
