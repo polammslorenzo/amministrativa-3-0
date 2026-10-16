@@ -87,6 +87,7 @@
     if (path.includes("riscontro-esposto")) return "esposto";
     if (path.includes("sorvegliabilita")) return "sorvegliabilita";
     if (path.includes("strutture-ricettive")) return "ricettive";
+    if (path.includes("riscontro-nota")) return "nota";
     throw new Error("Modulo non riconosciuto.");
   }
 
@@ -283,6 +284,20 @@
       count += put("via", fields.via);
       count += put("tit", fields.titolare);
       count += put("nomeStruttura", fields.nomeStruttura);
+    } else if (current === "nota") {
+      // Finche' la funzione Supabase non conosce il percorso "nota" i campi
+      // arrivano con i nomi dell'esposto: si accettano entrambi.
+      const e = extraction && typeof extraction === "object" ? extraction : {};
+      const pratica = e.practice && typeof e.practice === "object" ? e.practice : {};
+      count += put("pgN", fields.pgNota || fields.pgEsposto);
+      count += put("annoN", fields.annoNota || fields.annoEsposto);
+      count += put("dataNota", normalizeDate(fields.dataNota || pratica.date));
+      count += put("mitt", fields.mittente);
+      count += put("ogg", fields.oggetto);
+      count += put("via", fields.ubicazione || fields.via);
+      count += put("interessato", fields.interessato);
+      count += put("richiesta", fields.richiesta || e.sourceSummary);
+      if (typeof window.destinatarioDaMittente === "function") window.destinatarioDaMittente();
     }
     return count;
   }
@@ -297,6 +312,8 @@
     if (tpl && tpl.value && typeof window.setTpl === "function") window.setTpl(tpl.value);
     const esito = document.getElementById("esito");
     if (esito && esito.value && typeof window.setEsito === "function") window.setEsito(esito.value);
+    const modalita = document.getElementById("modalita");
+    if (modalita && modalita.value && typeof window.setModalita === "function") window.setModalita(modalita.value);
   }
 
   // Il Redattore chiamato dal modulo riceveva solo la bozza, mentre chiamato
@@ -626,6 +643,59 @@
         notify("E", error.message);
       } finally {
         setBusy("bGenNC", "", false);
+      }
+    };
+  }
+
+  if (moduleName() === "nota") {
+    window.leggiPDF = async function (file) {
+      notify("L", "Analisi protetta del PDF in corso...");
+      try {
+        const result = await callDashboardAgent("extractor", { document: await prepareDocument(file) });
+        const count = applyExtractionFields((result && result.fields) || {}, result);
+        schedulePracticeUpdate();
+        notify("O", count ? "Estrazione completata — " + count + " campi rilevati" : "Nessun campo certo rilevato — compila manualmente");
+        openForm();
+      } catch (error) {
+        notify("E", error.message);
+        openForm();
+      }
+    };
+
+    window.genTesto = async function () {
+      const draft = value("bozza");
+      if (!draft) {
+        notify("E", "Scrivi prima cosa vuoi rispondere");
+        return;
+      }
+      const sopralluogo = value("modalita") !== "verifica";
+      setBusy("bGenTesto", "Elaborazione...", true);
+      notify("L", "Formalizzazione protetta del testo...");
+      try {
+        const text = await write({
+          draft: draft,
+          context: {
+            oggettoDellaNota: value("ogg"),
+            ufficioOEnteMittente: value("mitt"),
+            cosaChiedeLaNota: value("richiesta"),
+            ubicazione: value("via"),
+            attivitaOInteressato: value("interessato"),
+            modalitaDelRiscontro: sopralluogo ? "sopralluogo sul posto" : "verifica d'ufficio, senza sopralluogo",
+            dataSopralluogo: sopralluogo ? value("dataAcc") : "",
+            oraSopralluogo: sopralluogo ? value("ora") : "",
+          },
+          target: {
+            campo: "Testo del riscontro",
+            descrizione: "Il corpo del riscontro a una nota con cui un altro ufficio comunale o un altro ente ha chiesto a questa U.O. controlli, sopralluoghi o informazioni. Non e' un esposto di un cittadino: non usare mai la parola esposto. Il testo entra nel documento sotto il titolo dell'esito, dopo una frase di apertura gia' presente (\"In riscontro alla nota in oggetto...\", con data, ora e luogo del sopralluogo): non ripeterla. Rispondi in ordine ai quesiti della nota per i quali l'operatore ha dato l'informazione; sui quesiti di cui l'operatore non dice nulla non scrivere niente e segnalali tra le informazioni mancanti. Niente intestazione, destinatario, formula di chiusura o firma.",
+            righe: "da 3 a 15 righe",
+          },
+        });
+        put("testoR", text);
+        notify("O", "Testo formalizzato — verifica tutti i fatti");
+      } catch (error) {
+        notify("E", error.message);
+      } finally {
+        setBusy("bGenTesto", "", false);
       }
     };
   }

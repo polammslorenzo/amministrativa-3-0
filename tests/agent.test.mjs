@@ -163,6 +163,7 @@ test("extractor automatico classifica, riassume e restituisce campi per il perco
     praticaId: "", richiedente: "", ubicazione: "", periodo: "", parere: "da_verificare", motivazione: "", prescrizioni: "",
     pgEsposto: "456", annoEsposto: "2026", oggetto: "Segnalazione rumori", via: "Via Verdi 8", mittente: "Anna Bianchi",
     pgRif: "", dataRif: "", protSUAP: "", titolare: "", nomeStruttura: "",
+    pgNota: "", annoNota: "", dataNota: "", interessato: "", richiesta: "",
   };
   const expected = {
     module: "esposto",
@@ -180,7 +181,7 @@ test("extractor automatico classifica, riassume e restituisce campi per il perco
   const mockFetch = async (_url, init) => {
     const body = JSON.parse(init.body);
     assert.match(body.input[0].content.at(-1).text, /Classifica la pratica/i);
-    assert.deepEqual(body.text.format.schema.properties.module.enum, ["edili", "esposto", "sorvegliabilita", "ricettive"]);
+    assert.deepEqual(body.text.format.schema.properties.module.enum, ["edili", "esposto", "sorvegliabilita", "ricettive", "nota"]);
     return new Response(JSON.stringify({ output_text: JSON.stringify(expected) }), { status: 200, headers: { "Content-Type": "application/json" } });
   };
   const response = await handleRequest(request("extractor", "auto", { sourceText: "Esposto PG 456 per rumori in Via Verdi 8." }), options(mockFetch));
@@ -189,6 +190,39 @@ test("extractor automatico classifica, riassume e restituisce campi per il perco
   assert.equal(data.module, "esposto");
   assert.equal(data.sourceSummary, expected.sourceSummary);
   assert.deepEqual(data.missingInformation, ["Esito del sopralluogo"]);
+});
+
+test("riscontro nota: l'estrattore chiede i campi della nota e il redattore non la tratta come esposto", async () => {
+  const fields = {
+    pgNota: "948424", annoNota: "2026", dataNota: "11.09.2026", mittente: "Area Sviluppo Economico - Servizio SUAP",
+    oggetto: "Richiesta controlli chiosco edicola ubicato in piazza L. Miraglia", ubicazione: "Piazza L. Miraglia",
+    interessato: "chiosco edicola", richiesta: "Attivita' svolta, esercente, attivita' secondarie, titolo, mezzi pubblicitari.",
+  };
+  const estratto = {
+    module: "nota", confidence: "alta", routeReason: "Nota del SUAP che chiede controlli.", isSupported: true, needsConfirmation: false,
+    practice: { id: "948424", subject: fields.oggetto, location: fields.ubicazione, protocol: "PG/2026/948424", date: "11.09.2026", notes: "" },
+    fields, sourceSummary: "Il SUAP chiede controlli sul chiosco edicola.", keyFacts: [], missingInformation: [], warnings: [],
+  };
+  const chiamate = [];
+  const mockFetch = async (_url, init) => {
+    const body = JSON.parse(init.body);
+    chiamate.push(body);
+    if (body.text.format.name === "amministrativa_extractor_nota") {
+      assert.deepEqual(body.text.format.schema.properties.module.enum, ["nota"]);
+      assert.deepEqual(Object.keys(body.text.format.schema.properties.fields.properties), Object.keys(fields));
+      assert.match(body.input[0].content.at(-1).text, /Riscontro Nota/);
+      return new Response(JSON.stringify({ output_text: JSON.stringify(estratto) }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    assert.match(body.instructions, /non chiamarlo esposto/);
+    return new Response(JSON.stringify({ output_text: JSON.stringify({ summary: "Riscontro alla nota.", text: "Il chiosco risulta aperto.", suggestions: [], missingInformation: [], nextQuestion: "" }) }), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  const estrazione = await handleRequest(request("extractor", "nota", { sourceText: "PG/2026/948424 Richiesta controlli chiosco edicola" }), options(mockFetch));
+  assert.equal(estrazione.status, 200);
+  assert.equal((await estrazione.json()).fields.pgNota, "948424");
+  const redazione = await handleRequest(request("writer", "nota", { draft: "chiosco aperto" }), options(mockFetch));
+  assert.equal(redazione.status, 200);
+  assert.equal((await redazione.json()).text, "Il chiosco risulta aperto.");
+  assert.equal(chiamate.length, 2);
 });
 
 test("CORS rifiuta origini diverse da quella configurata", async () => {
