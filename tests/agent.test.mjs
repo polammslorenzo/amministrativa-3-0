@@ -215,6 +215,10 @@ test("riscontro nota: l'estrattore chiede i campi della nota e il redattore non 
       return new Response(JSON.stringify({ output_text: JSON.stringify(estratto) }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
     assert.match(body.instructions, /non chiamarlo esposto/);
+    assert.match(body.instructions, /conserva date, termini assegnati, protocolli, destinatari/i);
+    assert.match(body.instructions, /non omettere fatti essenziali/i);
+    assert.match(body.instructions, /Esponi direttamente gli accertamenti/);
+    assert.doesNotMatch(body.instructions, /Usa formule come 'secondo quanto indicato/);
     return new Response(JSON.stringify({ output_text: JSON.stringify({ summary: "Riscontro alla nota.", text: "Il chiosco risulta aperto.", suggestions: [], missingInformation: [], nextQuestion: "" }) }), { status: 200, headers: { "Content-Type": "application/json" } });
   };
   const estrazione = await handleRequest(request("extractor", "nota", { sourceText: "PG/2026/948424 Richiesta controlli chiosco edicola" }), options(mockFetch));
