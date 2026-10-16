@@ -687,7 +687,7 @@
           target: {
             campo: "Testo del riscontro",
             descrizione: "Il corpo del riscontro a una nota con cui un altro ufficio comunale o un altro ente ha chiesto a questa U.O. controlli, sopralluoghi o informazioni. Non e' un esposto di un cittadino: non usare mai la parola esposto. Il testo entra nel documento sotto il titolo dell'esito, dopo una frase di apertura gia' presente (\"In riscontro alla nota in oggetto...\", con data, ora e luogo del sopralluogo): non ripeterla. Rispondi in ordine ai quesiti della nota per i quali l'operatore ha dato l'informazione; sui quesiti di cui l'operatore non dice nulla non scrivere niente e segnalali tra le informazioni mancanti. Niente intestazione, destinatario, formula di chiusura o firma.",
-            righe: "da 3 a 15 righe",
+            righe: "fino a 25 righe, solo se i fatti forniti lo richiedono",
           },
         });
         put("testoR", text);
