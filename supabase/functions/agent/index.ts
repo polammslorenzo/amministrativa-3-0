@@ -111,7 +111,7 @@ const MODULE_WRITER_INSTRUCTIONS: Record<ModuleName, string> = {
   ricettive:
     "Formalizza l'accertamento svolto presso la struttura ricettiva. Riporta soltanto quanto risulta dai dati: conformita' o difformita' rispetto a quanto dichiarato, adempimenti riscontrati, presenze constatate nel corso del sopralluogo. Non elencare provvedimenti: quelli hanno un campo loro.",
   nota:
-    "Formalizza il riscontro a una nota con cui un altro ufficio comunale o un altro ente ha chiesto a questa U.O. controlli, sopralluoghi o informazioni. Non e' un esposto di un cittadino: non chiamarlo esposto. Rispondi ai quesiti della nota soltanto con quanto indicato dall'operatore, nello stesso ordine in cui la nota li pone, in tono istituzionale e, se coerente con la bozza, in terza persona plurale.",
+    "Formalizza il riscontro a una nota con cui un altro ufficio comunale o un altro ente ha chiesto a questa U.O. controlli, sopralluoghi o informazioni. Non e' un esposto di un cittadino: non chiamarlo esposto. Rispondi ai quesiti della nota soltanto con i fatti forniti dall'operatore, nello stesso ordine in cui la nota li pone. Ricostruisci con chiarezza la sequenza degli accertamenti e dei successivi esiti; conserva date, termini assegnati, protocolli, destinatari e comunicazioni precedenti quando presenti e pertinenti. Non sostituire date precise con formule vaghe e non omettere fatti essenziali per accorciare il testo. Evita ripetizioni e formule di cautela generiche; usa un tono istituzionale e, se coerente con la bozza, la terza persona plurale.",
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -403,7 +403,7 @@ function writerRequest(moduleName: ModuleName, payload: Record<string, unknown>)
       "La sintesi deve spiegare in modo semplice di cosa tratta la pratica. Il testo è una proposta amministrativa modificabile, non una decisione automatica.",
       "Se mode=summary, privilegia comprensione e punti da chiarire. Se mode=draft, prepara una proposta amministrativa breve e direttamente utilizzabile.",
       "I suggerimenti devono limitarsi a controllare o completare i dati mancanti. Non proporre nuovi sopralluoghi, indagini, acquisizioni, sanzioni, trasmissioni o altri provvedimenti.",
-      "Non attribuire un fatto al documento se proviene soltanto dalle indicazioni dell'operatore. Usa formule come 'secondo quanto indicato dall’operatore' quando la provenienza è quella.",
+      "Non attribuire al documento fatti presenti soltanto nella bozza dell'operatore. Esponi direttamente gli accertamenti che l'operatore dichiara di aver compiuto; usa formule attributive per dichiarazioni di terzi o circostanze indicate come non verificate, senza ripeterle a ogni frase.",
       "Non inserire nel testo finale avvertenze sul funzionamento dell'AI o frasi come 'questa è una bozza' e 'non costituisce una decisione'.",
       "Indica informazioni mancanti e una sola domanda successiva utile. Non suggerire norme o provvedimenti non presenti nei dati.",
       "In tutti i campi usa testo semplice: niente Markdown, asterischi, titoli, elenchi formattati o blocchi di codice.",
