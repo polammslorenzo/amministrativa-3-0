@@ -24,6 +24,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
 .f{display:flex;flex-direction:column;gap:5px}
+.hint{font-size:12px;line-height:1.45;color:#aeb8c9;margin-top:2px}
 label{font-size:11px;font-weight:500;color:#8a94a6;text-transform:uppercase;letter-spacing:.4px}
 .ai{background:#0f2a1a;color:#4ade80;font-size:9px;padding:1px 5px;border-radius:3px;font-weight:600;text-transform:none;margin-left:4px}
 input,select,textarea{background:#1c1f28;color:#e8eaf0;border:1px solid #2a2d38;border-radius:8px;padding:8px 11px;font-size:13px;width:100%;outline:none;transition:border-color .15s;font-family:inherit}
@@ -134,6 +135,7 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
       <div class="f" style="margin-bottom:12px">
         <label>Cosa vuoi rispondere</label>
         <textarea id="bozza" rows="5" placeholder="Scrivi con parole tue cosa rispondere. Es.: chiosco aperto, gestito da Mario Rossi, vende giornali e per circa il 30% souvenir, nessun titolo esibito, insegna luminosa sul tetto."></textarea>
+        <div class="hint">Se pertinenti, indica anche date dei controlli, termini assegnati, esiti successivi e comunicazioni già trasmesse con protocollo e destinatario. Il Redattore non può ricavare questi fatti dalla sola nota ricevuta.</div>
         <button class="bai" id="bGenTesto" onclick="genTesto()">&#10022; Formalizza con AI</button>
       </div>
       <div class="f" style="margin-bottom:12px">
