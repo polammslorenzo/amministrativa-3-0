@@ -72,7 +72,7 @@ Per classificare automaticamente il documento si usa:
 Agenti:
 
 - `extractor`: usa Structured Outputs con JSON Schema, valida nuovamente il risultato sul server e restituisce percorso, confidenza, motivazione, `practice`, `fields`, sintesi, fatti chiave, informazioni mancanti e avvisi;
-- `writer`: restituisce in forma strutturata sintesi, proposta testuale, suggerimenti, informazioni mancanti e una domanda successiva. Formalizza solo i dati forniti, senza inventare fatti e senza Markdown o asterischi.
+- `writer`: restituisce in forma strutturata sintesi, proposta testuale, suggerimenti, informazioni mancanti e una domanda successiva. Formalizza solo i dati forniti, senza inventare fatti e senza Markdown o asterischi. Il Redattore usa `gpt-6-astra` con ragionamento `low`; l'Estrattore mantiene il modello configurato separatamente.
 
 Se OpenAI restituisce una risposta incompleta o un JSON troncato durante l'analisi di un PDF articolato, l'Estrattore esegue un solo secondo tentativo automatico con maggiore margine. Nessun JSON parziale o fuori schema viene inviato al frontend.
 
@@ -114,7 +114,7 @@ collegato. Prima dell'uso su pratiche reali servono, nell'ordine:
 Variabili supportate:
 
 - `OPENAI_API_KEY` obbligatoria;
-- `OPENAI_MODEL` facoltativa, valore predefinito `gpt-5-mini`;
+- `OPENAI_MODEL` facoltativa per l'Estrattore, valore predefinito `gpt-5-mini`. Il Redattore usa `gpt-6-astra` indipendentemente da questa variabile;
 - `ALLOWED_ORIGINS` **obbligatoria in produzione**, elenco separato da virgole di
   origini esatte. Se non è valorizzata la funzione ammette soltanto `localhost`;
 - `ALLOW_FILE_ORIGIN` facoltativa. Solo con valore `1` la funzione accetta
@@ -133,7 +133,7 @@ Edge Function: https://xebhjdqufgdekxcoebiy.supabase.co/functions/v1/agent
 
 La funzione `agent` è pubblicata, il secret `OPENAI_API_KEY` è configurato lato server e `config.js` contiene già l'URL completo.
 
-Il percorso `nota` (Riscontro Nota SUAP / Altri Enti) è stato aggiunto dopo l'ultima pubblicazione della funzione. Finché la funzione non viene ripubblicata con il nuovo `supabase/functions/agent/index.ts`, il server risponde `INVALID_MODULE` e la dashboard ripiega da sola sul percorso `esposto`: il modulo funziona, ma l'Estrattore non restituisce i campi propri della nota (data, attività interessata, cosa chiede la nota, che viene presa dalla sintesi) e l'instradamento automatico dalla dashboard non propone mai il nuovo percorso. Dopo la ripubblicazione il ripiego non scatta più.
+Il percorso `nota` (Riscontro Nota SUAP / Altri Enti) è attivo nella funzione pubblicata. La dashboard conserva un ripiego su `esposto` soltanto per eventuali installazioni con una versione precedente della funzione che rispondano `INVALID_MODULE`.
 
 La chiave creata da Codex è inoltre conservata localmente fuori dallo ZIP e non è presente nel repository o nella build GitHub Pages.
 
