@@ -129,6 +129,7 @@ test("extractor non accetta JSON formalmente valido ma fuori schema", async () =
 test("writer applica il routing del modulo e rimuove Markdown e asterischi", async () => {
   const mockFetch = async (_url, init) => {
     const body = JSON.parse(init.body);
+    assert.equal(body.model, "gpt-6-astra");
     assert.match(body.instructions, /struttura ricettiva/i);
     assert.match(body.instructions, /Non inventare/i);
     assert.match(body.input, /posti letto/i);
