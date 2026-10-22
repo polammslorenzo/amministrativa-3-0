@@ -149,3 +149,76 @@ test("ogni modello Word ha il pie' di pagina dell'ufficio e non stira le righe p
   }
   assert.ok(modelli >= 9, `trovati solo ${modelli} modelli Word`);
 });
+
+// ---- Lettera di trasmissione comune (assets/lettera.js) ----
+function caricaLettera() {
+  const finestra = {};
+  vm.runInContext(fs.readFileSync(path.join(RADICE, "assets", "lettera.js"), "utf8"), vm.createContext({ window: finestra }));
+  return finestra.ADMIN3_LETTERA;
+}
+function testiParagrafi(xml) {
+  return (xml.match(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g) || [])
+    .map((p) => (p.match(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g) || []).map((t) => t.replace(/<[^>]+>/g, "")).join(""))
+    .filter((t) => t.trim());
+}
+
+test("lettera comune: date, PG e nomi degli agenti", () => {
+  const L = caricaLettera();
+  assert.equal(L.data("16/10/26"), "16.10.2026");
+  assert.equal(L.data("2026-10-16"), "16.10.2026");
+  assert.equal(L.data("4.9.2026"), "04.09.2026");
+  assert.equal(L.protocollo("1097676", "13/10/2026"), "PG/2026/1097676 del 13.10.2026");
+  assert.equal(L.protocollo("PG/2025/1200", ""), "PG/2025/1200");
+  assert.equal(L.protocollo("301627", "09.03.2026", "2025"), "PG/2025/301627 del 09.03.2026");
+  assert.equal(L.protocollo("", "13.10.2026"), "");
+  assert.equal(L.agenti(["A.C. FERRARA 3015", "ASS SEBASTIANO 639S", "AC DI MARTINO 046S", "AG. ESPOSITO 2583"]), "A.C. Ferrara – Ass. Sebastiano – A.C. Di Martino – Ag. Esposito");
+  assert.equal(L.corpo("il parere redatto", []), "Si trasmette, in allegato, il parere redatto dal personale di questa U.O. in merito a quanto in oggetto.");
+});
+
+test("lettera comune: compone il modello di ogni modulo e rifinisce data in calce e firma", () => {
+  const L = caricaLettera();
+  let lettere = 0;
+  for (const f of fileHtml().filter((x) => x.startsWith("modules"))) {
+    const testo = fs.readFileSync(path.join(RADICE, f), "utf8");
+    assert.ok(testo.includes('<script src="../assets/lettera.js"></script>'), `${f}: lettera.js non caricato`);
+    for (const m of testo.matchAll(/([A-Za-z_]\w*)\s*[:=]\s*'(UEsDB[A-Za-z0-9+/=]{2000,})'/g)) {
+      const xml = leggiZip(Buffer.from(m[2], "base64"))["word/document.xml"].toString("utf8");
+      const finito = L.rifinisci(xml);
+      const righe = testiParagrafi(finito);
+      assert.ok(righe.includes("Napoli, data del protocollo"), `${f} ${m[1]}: manca "Napoli, data del protocollo"`);
+      assert.ok(!righe.some((r) => /^Napoli,\s*li/.test(r)), `${f} ${m[1]}: resta una data in calce`);
+      assert.ok(righe.includes("Firma autografa sostituita a mezzo stampa ai sensi dell’art. 3, comma 2, del D.Lgs. 39/1993"), `${f} ${m[1]}: formula di firma`);
+      const calce = finito.match(/<w:p(?:\s[^>]*)?>(?:(?!<\/w:p>)[\s\S])*Napoli, data del protocollo[\s\S]*?<\/w:p>/)[0];
+      assert.match(calce, /<w:rPr><w:rFonts[^>]*\/><w:i\/><w:iCs\/>/, `${f} ${m[1]}: la data in calce non e' in corsivo o le proprieta' sono fuori ordine`);
+      if (!xml.includes("CONTROLLO POSTEGGIO MERCATO CARAMANICO")) continue;
+      lettere++;
+      const lettera = testiParagrafi(L.componi(xml, {
+        pg: "PG/2026/1101234", data: "22/10/26",
+        riferimenti: [["Rif. Vs. nota: ", "PG/2026/948424 del 11.09.2026"], ["Pratica: ", ""], ["Rif. Prot. SUAP: ", "1201698/2025"]],
+        oggetto: "Riscontro Vs. nota PG/2026/948424 del 11.09.2026 – Richiesta controlli",
+        corpo: L.corpo("la relazione di servizio redatta", ["ASS SEBASTIANO 639S"]),
+        dati: [["Attività: ", "chiosco edicola"], ["Ubicazione: ", ""]],
+      }));
+      const attese = [
+        "PG/2026/1101234   del   22.10.2026",
+        "Rif. Vs. nota: PG/2026/948424 del 11.09.2026",
+        "Rif. Prot. SUAP: 1201698/2025",
+        "OGGETTO",
+        "Riscontro Vs. nota PG/2026/948424 del 11.09.2026 – Richiesta controlli",
+        "Si trasmette, in allegato, la relazione di servizio redatta dal personale di questa U.O. (Ass. Sebastiano) in merito a quanto in oggetto.",
+        "Attività: chiosco edicola",
+        "Si resta a disposizione per ogni ulteriore chiarimento.",
+      ];
+      let da = 0;
+      for (const riga of attese) {
+        const i = lettera.indexOf(riga, da);
+        assert.ok(i >= 0, `${f} ${m[1]}: manca o e' fuori posto "${riga}"\n${lettera.join("\n")}`);
+        da = i + 1;
+      }
+      for (const via of ["Pratica:", "Riscontro accertamento", "Ubicazione:", "Trasmissione atti", "c_f839"]) {
+        assert.ok(!lettera.some((r) => r.includes(via)), `${f} ${m[1]}: resta "${via}"`);
+      }
+    }
+  }
+  assert.equal(lettere, 5, "una lettera di trasmissione per modulo");
+});

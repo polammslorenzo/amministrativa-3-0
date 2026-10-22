@@ -6,6 +6,7 @@
 <title>Riscontro Nota SUAP / Altri Enti — U.O. San Lorenzo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="../assets/docx-review.js"></script>
+<script src="../assets/lettera.js"></script>
 <style>*{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111318;color:#e8eaf0;min-height:100vh;padding:20px 16px}
 .wrap{max-width:820px;margin:0 auto}
@@ -96,10 +97,9 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
   </div>
   <div id="form">
     <div class="sec"><div class="sh">Riferimenti risposta</div>
-      <div class="g3">
+      <div class="g2">
         <div class="f"><label>PG Risposta</label><input id="pgR" placeholder="es. 1094339"></div>
-        <div class="f"><label>Data risposta (GG/MM/AA)</label><input id="dataR" oninput="var di=document.getElementById('dataI'); if(di) di.value=this.value;"></div>
-        <div class="f"><label>Data Napoli li (estesa)</label><input id="dataN" placeholder="es. 16 ottobre 2026"></div>
+        <div class="f"><label>Data risposta (gg.mm.aaaa)</label><input id="dataR" oninput="var di=document.getElementById('dataI'); if(di) di.value=this.value;"></div>
       </div>
     </div>
     <div class="sec"><div class="sh">Nota ricevuta</div>
@@ -158,9 +158,10 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
         <span style="font-size:13px;color:#8a94a6;cursor:pointer" onclick="togLettera()">Genera anche la lettera di trasmissione</span>
       </div>
       <div id="letteraSec" style="display:none">
-        <div class="g2">
-          <div class="f"><label>PG ingresso (rif. lettera)</label><input id="pgI" placeholder="se vuoto: PG della nota"></div>
-          <div class="f"><label>Data di firma</label><input id="dataI" readonly style="background:#1a1d24;color:#8a94a6"></div>
+        <div class="g3">
+          <div class="f"><label>PG a cui si risponde</label><input id="pgI" placeholder="se vuoto: PG della nota"></div>
+          <div class="f"><label>Data di quel PG</label><input id="dataPgI" placeholder="se vuoto: data della nota"></div>
+          <div class="f"><label>Data protocollo</label><input id="dataI" readonly style="background:#1a1d24;color:#8a94a6"></div>
         </div>
         
         <div class="g2">
@@ -227,9 +228,7 @@ document.getElementById('dz').ondrop = function(e){
 };
 (function(){
   var n=new Date(), d=n.getDate().toString().padStart(2,'0'), m=(n.getMonth()+1).toString().padStart(2,'0'), y=n.getFullYear().toString().slice(-2);
-  var mesi=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
-  document.getElementById('dataR').value=d+'/'+m+'/'+y;
-  document.getElementById('dataN').value=parseInt(d)+' '+mesi[n.getMonth()]+' '+n.getFullYear();
+  document.getElementById('dataR').value=d+'.'+m+'.'+n.getFullYear();
   document.getElementById('dataAcc').value=d+'.'+m+'.'+n.getFullYear();
   document.getElementById('annoN').value=n.getFullYear().toString();
 })();
@@ -301,7 +300,7 @@ function riferimentoNota(){
   var m=raw.match(/^PG\s*\/\s*(\d{4})\s*\/\s*(\d+)/i);
   var anno=m?m[1]:(document.getElementById('annoN').value.trim()||String(new Date().getFullYear()));
   var numero=m?m[2]:raw.replace(/^PG\s*\/?\s*/i,'');
-  var pg='PG/'+anno+'/'+numero, data=document.getElementById('dataNota').value.trim();
+  var pg='PG/'+anno+'/'+numero, data=window.ADMIN3_LETTERA.data(document.getElementById('dataNota').value);
   return {pg:pg, anno:anno, testo:pg+(data?' del '+data:'')};
 }
 
@@ -346,7 +345,7 @@ function _paragrafiAlPosto(xml,segnaposto,testi){
 
 async function genera(){
   var sopr=document.getElementById('modalita').value!=='verifica';
-  var obbligatori=['pgR','dataR','dataN','pgN','mitt','ogg'];
+  var obbligatori=['pgR','dataR','pgN','mitt','ogg'];
   if(sopr)obbligatori=obbligatori.concat(['via','dataAcc','ora']);
   if(!validateRequired(obbligatori))return;
   var testo=cleanFormalText(document.getElementById('testoR').value); document.getElementById('testoR').value=testo;
@@ -359,8 +358,7 @@ async function genera(){
   mostraMsg('L','Creazione DOCX...');
   try{
     var pgRaw=document.getElementById('pgR').value.trim(); var pgAnno=pgYearOf(pgRaw); var pg=pgRaw.replace(/^PG\/\d{4}\//i,''); if(pg) pg='PG/'+pgAnno+'/'+pg;
-    var dataR=document.getElementById('dataR').value.trim();
-    var dataN=document.getElementById('dataN').value.trim();
+    var dataR=window.ADMIN3_LETTERA.data(document.getElementById('dataR').value);
     var nota=riferimentoNota();
     var mitt=document.getElementById('mitt').value.trim();
     var ogg=document.getElementById('ogg').value.trim();
@@ -370,7 +368,8 @@ async function genera(){
     var ora=document.getElementById('ora').value.trim();
     var presso=document.getElementById('cO').value.trim()||interessato;
     var prov=document.getElementById('prov').value.trim()||'////';
-    var ags=['ag1','ag2','ag3','ag4'].map(function(id){var s=document.getElementById(id);return s.options[s.selectedIndex].text;}).filter(function(t){return t!=='--';}).join(' - ');
+    var agenti=['ag1','ag2','ag3','ag4'].map(function(id){var s=document.getElementById(id);return s.options[s.selectedIndex].text;}).filter(function(t){return t!=='--';});
+    var ags=agenti.join(' - ');
 
     // Stesso modello del Riscontro Esposto: cambiano le etichette e l'apertura.
     var zip=await JSZip.loadAsync(B64,{base64:true});
@@ -400,7 +399,6 @@ async function genera(){
     }
     xml=_paragrafiAlPosto(xml,'TESTO_ACCERTATO',testo.split('\n'));
     xml=rf(xml,'////.',prov);
-    xml=rf(xml,'Napoli, li  28 marzo 2026','Napoli, li  '+dataN);
     xml=rf(xml,'ASS BATTAGLIA 651S',ags);
 
     xml=polishDocumentXml(xml,APP_DOC_KIND); await polishDocxStyles(zip); zip.file('word/document.xml',xml);
@@ -408,7 +406,7 @@ async function genera(){
     var _reviewItems=letteraOn?[]:[{zip:zip,filename:(_nomeFile||'relazione')+'.docx'}];
 
     if(letteraOn){
-      var pgI=document.getElementById('pgI').value.trim(); pgI=pgI.replace(/^PG\/\d{4}\//i,'');
+      var pgI=document.getElementById('pgI').value.trim();
       var dataIEl=document.getElementById('dataI');
       var dataI=(dataIEl&&dataIEl.value.trim())?dataIEl.value.trim():dataR;
       var dA=document.getElementById('destA');var dU=document.getElementById('destU');
@@ -422,21 +420,19 @@ async function genera(){
 
       var zipL=await JSZip.loadAsync(B64L,{base64:true});
       var xmlL=await zipL.file('word/document.xml').async('string');
-      xmlL=rf(xmlL,'PG/2026/375181',pg);
-      xmlL=xmlL.split('<w:t>   del   28/03/26</w:t>').join('<w:t>   del   '+xe(dataI)+'</w:t>');
-      xmlL=xmlL.split('<w:t xml:space="preserve">   del   28/03/26</w:t>').join('<w:t xml:space="preserve">   del   '+xe(dataI)+'</w:t>');
-      xmlL=rf(xmlL,'PG/2026/301627',pgI?'PG/'+nota.anno+'/'+pgI:nota.pg);
-      xmlL=_removeParagraphContaining(xmlL,'Rif. Prot. SUAP:');
-      xmlL=rf(xmlL,'Trasmissione atti — CONTROLLO POSTEGGIO MERCATO CARAMANICO','Trasmissione atti — RISCONTRO NOTA - '+ogg);
-      xmlL=rf(xmlL,'Riscontro accertamento','Riscontro nota '+nota.testo);
-      if(interessato){ xmlL=rf(xmlL,'Utente: ','Attività: '); xmlL=rf(xmlL,'CRISTIANO VINCENZO',interessato); }
-      else xmlL=_removeParagraphContaining(xmlL,'Utente: ');
-      if(via) xmlL=rf(xmlL,'POSTEGGIO 269 - INT MERCATO',via);
-      else xmlL=_removeParagraphContaining(xmlL,'Ubicazione: ');
-      xmlL=rf(xmlL,'Si trasmette quanto accertato in merito all’oggetto da ASS BATTAGLIA 651S.',(sopr?'Si trasmette quanto accertato':'Si trasmette l’esito delle verifiche svolte')+' in merito all’oggetto da '+ags+'.');
+      // Riferimenti, oggetto, corpo e chiusura: assets/lettera.js, uguale per tutti i moduli.
+      // Si risponde alla nota ricevuta, salvo che l'operatore indichi un altro PG.
+      var L=window.ADMIN3_LETTERA;
+      var richiesta=pgI?L.protocollo(pgI,document.getElementById('dataPgI').value):nota.testo;
+      xmlL=L.componi(xmlL,{
+        pg:pg, data:dataI,
+        riferimenti:[['Rif. Vs. nota: ',richiesta]],
+        oggetto:'Riscontro Vs. nota '+richiesta+' – '+ogg,
+        corpo:L.corpo(sopr?'la relazione di servizio redatta':'l’esito delle verifiche svolte',agenti),
+        dati:[['Attività: ',interessato],['Ubicazione: ',via]]
+      });
       var est=document.getElementById('estensore');
       if(est) xmlL=rf(xmlL,'Estensore: Battaglia','Estensore: '+est.options[est.selectedIndex].value);
-      xmlL=rf(xmlL,'Napoli, li  28/03/26','Napoli, li  '+dataI);
       xmlL=rf(xmlL,'Il Responsabile di Reparto',fq.options[fq.selectedIndex].text);
       xmlL=rf(xmlL,'S.Ten. Alessandro Autore',fn.options[fn.selectedIndex].text);
       var areaOld="All’Area Sviluppo Socio Economico e Competitività";
@@ -473,7 +469,7 @@ async function genera(){
 
 
 // ===== Migliorie operative v2.1 =====
-var APP_VERSION='3.5 - riscontro nota';
+var APP_VERSION='3.6 - lettera di trasmissione rivista';
 var MAX_FILE_MB=12;
 function pgYearOf(raw){var m=String(raw||'').match(/^\s*PG\/(\d{4})\//i);return m?m[1]:protocolYear();}
 function protocolYear(){var e=document.getElementById('annoProt');return e&&/^\d{4}$/.test(e.value)?e.value:String(new Date().getFullYear());}
@@ -481,7 +477,7 @@ function formatDateExt(d){var m=['gennaio','febbraio','marzo','aprile','maggio',
 function initOperationalEnhancements(){
   var sub=document.querySelector('.hdr>div:last-child');if(sub&&!sub.querySelector('.ver')){var v=document.createElement('div');v.className='ver';v.textContent='Versione '+APP_VERSION;sub.appendChild(v);}
   var pg=document.getElementById('pgR');if(pg&&!document.getElementById('annoProt')){var f=pg.closest('.f');if(f){var y=document.createElement('input');y.id='annoProt';y.inputMode='numeric';y.maxLength=4;y.value=String(new Date().getFullYear());y.placeholder='Anno protocollo';y.style.marginTop='6px';f.appendChild(y);}}
-  ['dataR','dataAcc'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.value){var n=new Date();e.value=String(n.getDate()).padStart(2,'0')+'/'+String(n.getMonth()+1).padStart(2,'0')+'/'+String(n.getFullYear()).slice(-2);}});
+  ['dataR','dataAcc'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.value){var n=new Date();e.value=String(n.getDate()).padStart(2,'0')+'.'+String(n.getMonth()+1).padStart(2,'0')+'.'+n.getFullYear();}});
   var o=document.getElementById('ora');if(o&&!o.value){var n=new Date();o.value=String(n.getHours()).padStart(2,'0')+'.'+String(n.getMinutes()).padStart(2,'0');}
   ['dataNap','dataN'].forEach(function(id){var e=document.getElementById(id);if(e)e.value=formatDateExt(new Date());});
   var form=document.getElementById('form');if(form&&!document.getElementById('draftTools')){var t=document.createElement('div');t.id='draftTools';t.className='toolbar';t.innerHTML='<button type="button" class="bsmall" onclick="saveDraft(true)">Salva bozza</button><button type="button" class="bsmall" onclick="loadDraft(true)">Riprendi bozza</button><button type="button" class="bsmall" onclick="showPreview()">Anteprima</button><button type="button" class="bsmall" onclick="exportRegistryCSV()">Esporta registro CSV</button><button type="button" class="bsmall" onclick="clearDraft()">Cancella bozza</button>';form.insertBefore(t,form.firstChild);}
@@ -567,7 +563,7 @@ function _styleParaByText(xml,text,opt){
     // rivendicavano anche lui e lo ricentravano, annullando l'allineamento a
     // sinistra impostato poco prima. Quel paragrafo appartiene alla sua regola
     // e a nessun'altra.
-    if(text!=='Trasmissione atti'&&piano.indexOf('Trasmissione atti')>=0)return p;
+    if(text!=='Trasmissione atti'&&(piano.indexOf('Trasmissione atti')>=0||p.indexOf('ADMIN3_oggetto')>=0))return p;
     return _styleParagraph(p,opt);
   });
 }
@@ -647,7 +643,8 @@ function polishDocumentXml(xml,kind){
     xml=_styleParaByText(xml,'IRREGOLARIT',{size:23,bold:true,before:80,after:70,keep:true});
     xml=_styleParaByText(xml,'PROVVEDIMENT',{size:23,bold:true,before:80,after:70,keep:true});
   }
-  return xml;
+  // Data in calce e formula sotto le firme: uguali in tutti i Word (assets/lettera.js).
+  return window.ADMIN3_LETTERA.rifinisci(xml);
 }
 async function polishDocxStyles(zip){
   var f=zip.file('word/styles.xml');if(!f)return;

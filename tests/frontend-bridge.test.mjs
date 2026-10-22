@@ -308,3 +308,27 @@ test("riscontro nota: il modulo compila i campi anche con i nomi dell'esposto", 
   assert.match(elements.get("richiesta").value, /chiosco/);
   assert.equal(destinatario, 1);
 });
+
+test("pareri edili: PG e data della richiesta passano dalla pratica estratta alla lettera", () => {
+  const elements = new Map();
+  for (const id of ["praticaId", "richiedente", "ubicazione", "periodo", "tpl", "tipoPratica", "pgI", "dataPgI"]) {
+    elements.set(id, { value: id === "tpl" ? "fav" : id === "tipoPratica" ? "os" : "", dispatchEvent() {} });
+  }
+  let listener;
+  const parent = { postMessage() {} };
+  const windowObject = { parent, addEventListener(type, fn) { if (type === "message") listener = fn; }, setTpl() {}, setTipoPratica() {} };
+  const context = vm.createContext({
+    window: windowObject,
+    document: { getElementById: (id) => elements.get(id) || null },
+    location: { pathname: "/modules/pareri-edili.html", protocol: "file:" },
+    localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+    Event: class Event { constructor(type) { this.type = type; } },
+    FileReader: class FileReader {},
+    Promise, Map, Date, setTimeout, clearTimeout, console,
+  });
+  vm.runInContext(fs.readFileSync(path.join(root, "assets/module-ai-bridge.js"), "utf8"), context);
+  listener({ source: parent, data: { channel: "ADMIN3_BRIDGE", type: "module-hydrate", module: "edili", practiceSession: "s1", moduleData: {},
+    extraction: { practice: { protocol: "PG/2026/1097676 del 13/10/2026", date: "13/10/2026" }, fields: { praticaId: "PC/2026/35" } } } });
+  assert.equal(elements.get("pgI").value, "PG/2026/1097676");
+  assert.equal(elements.get("dataPgI").value, "13.10.2026");
+});

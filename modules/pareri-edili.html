@@ -6,6 +6,7 @@
 <title>Pareri Edilizi — U.O. San Lorenzo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="../assets/docx-review.js"></script>
+<script src="../assets/lettera.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#111318;color:#e8eaf0;min-height:100vh;padding:20px 16px}
@@ -119,7 +120,7 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
   <div class="sec"><div class="sh">Riferimenti</div>
     <div class="g2">
       <div class="f"><label>PG Risposta</label><input id="pgR" placeholder="es. 310129"></div>
-      <div class="f"><label>Data risposta (GG/MM/AA)</label><input id="dataR" oninput="var di=document.getElementById('dataI'); if(di) di.value=this.value;"></div>
+      <div class="f"><label>Data risposta (gg.mm.aaaa)</label><input id="dataR" oninput="var di=document.getElementById('dataI'); if(di) di.value=this.value;"></div>
     </div>
   </div>
   <div class="sec"><div class="sh">Dati pratica</div>
@@ -146,9 +147,6 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
     <input type="file" id="fi" accept=".pdf,image/*" style="display:none">
     <button onclick="analizzaAI()" id="bAI" class="bman" style="background:#1e3a5f;color:#60a5fa;border-color:#1e3a5f;margin-top:0">&#10022; Analizza con AI</button>
   </div>
-  <div class="sec"><div class="sh">Data Napoli</div>
-    <div class="g2"><div class="f"><label>Data Napoli (estesa)</label><input id="dataNap" placeholder="compilata automaticamente"></div><div></div></div>
-  </div>
   <div class="sec"><div class="sh">Agenti</div>
     <div class="g2">
       <div class="f"><label>Agente 1</label><select id="ag1"><option>--</option><option>A.C. FERRARA 3015</option><option>ASS SEBASTIANO 639S</option><option>ASS BATTAGLIA 651S</option><option>AC DI MARTINO 046S</option><option>AG. ESPOSITO 2583</option><option>AG. IAVARONE 3449</option></select></div>
@@ -163,9 +161,10 @@ input:focus,select:focus,textarea:focus{border-color:#5b9cf6;box-shadow:0 0 0 3p
       <span style="font-size:13px;color:#8a94a6;cursor:pointer" onclick="togLettera()">Genera anche la lettera di trasmissione</span>
     </div>
     <div id="letteraSec" style="display:none">
-      <div class="g2">
-        <div class="f"><label>PG ingresso</label><input id="pgI" placeholder="es. 310129"></div>
-        <div class="f"><label>Data di firma</label><input id="dataI" readonly style="background:#1a1d24;color:#8a94a6"></div>
+      <div class="g3">
+        <div class="f"><label>PG della richiesta</label><input id="pgI" placeholder="es. 1097676"></div>
+        <div class="f"><label>Data della richiesta</label><input id="dataPgI" placeholder="es. 13.10.2026"></div>
+        <div class="f"><label>Data protocollo</label><input id="dataI" readonly style="background:#1a1d24;color:#8a94a6"></div>
       </div>
       <div class="f" style="margin-bottom:12px"><label>Estensore</label>
         <select id="estensore"><option value="A.C. Ferrara">A.C. Ferrara</option><option value="ASS Sebastiano">ASS Sebastiano</option><option value="ASS Battaglia">ASS Battaglia</option></select>
@@ -216,9 +215,7 @@ document.getElementById('dz').ondrop = function(e){ e.preventDefault(); var f=e.
 
 (function(){
   var n=new Date(), d=n.getDate().toString().padStart(2,'0'), m=(n.getMonth()+1).toString().padStart(2,'0'), y=n.getFullYear().toString().slice(-2);
-  var mesi=['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
-  document.getElementById('dataR').value=d+'/'+m+'/'+y;
-  document.getElementById('dataNap').value=parseInt(d)+' '+mesi[n.getMonth()]+' '+n.getFullYear();
+  document.getElementById('dataR').value=d+'.'+m+'.'+n.getFullYear();
 })();
 
 function mostraMsg(t,s){ return msg(t,s); }
@@ -337,7 +334,7 @@ function rf(xml,o,n){
 }
 
 async function genera(){
-  if(!validateRequired(['pgR','dataR','praticaId','richiedente','ubicazione','dataNap']))return;
+  if(!validateRequired(['pgR','dataR','praticaId','richiedente','ubicazione']))return;
   var tpl=document.getElementById('tpl').value;
   var pc=isPassoCarrabile();
   var pres=document.getElementById('prescrizioni').value.trim();
@@ -347,13 +344,13 @@ async function genera(){
   msg('L','Creazione DOCX...');
   try{
     var pgRaw=document.getElementById('pgR').value.trim(); var pgAnno=pgYearOf(pgRaw); var pg=pgRaw.replace(/^PG\/\d{4}\//i,''); if(pg) pg='PG/'+pgAnno+'/'+pg;
-    var dataR=document.getElementById('dataR').value.trim();
+    var dataR=window.ADMIN3_LETTERA.data(document.getElementById('dataR').value);
     var pratica=document.getElementById('praticaId').value.trim();
     var rich=document.getElementById('richiedente').value.trim();
     var ubic=document.getElementById('ubicazione').value.trim();
     var periodo=document.getElementById('periodo').value.trim();
-    var dataN=document.getElementById('dataNap').value.trim();
-    var ags=['ag1','ag2','ag3','ag4'].map(function(id){var s=document.getElementById(id);return s.options[s.selectedIndex].text;}).filter(function(t){return t!=='--';}).join(' - ');
+    var agenti=['ag1','ag2','ag3','ag4'].map(function(id){var s=document.getElementById(id);return s.options[s.selectedIndex].text;}).filter(function(t){return t!=='--';});
+    var ags=agenti.join(' - ');
 
     // Il passo carrabile parte dal modello sfavorevole, che sotto il titolo ha un solo paragrafo da riempire.
     var zip=await JSZip.loadAsync(B64[pc?'sfav':tpl],{base64:true});
@@ -372,7 +369,6 @@ async function genera(){
       xml=rf(xml,'Rilascio parere per lavori edili','Rilascio parere occupazione suolo pubblico per passo carrabile');
       xml=rf(xml,'PARERE SFAVOREVOLE',tpl==='sfav'?'PARERE NEGATIVO':'PARERE FAVOREVOLE');
       xml=_paragrafiAlPosto(xml,'MOTIVAZIONE_PLACEHOLDER',tpl==='sfav'?[PC_TESTO.negativo].concat(righeTesto(mot)):PC_TESTO.favorevole);
-      xml=rf(xml,'Napoli, li  11 marzo 2026','Napoli, li  '+dataN);
       xml=rf(xml,'A.C. FERRARA 3015',ags);
     } else if(tpl==='fav'||tpl==='favp'){
       xml=rf(xml,'PG/2026/310129',pg);
@@ -382,7 +378,6 @@ async function genera(){
       xml=rf(xml,'ASL NAPOLI 1 CENTRO \u2014 U.O.C. MANUTENZIONE',rich);
       xml=rf(xml,'VIA MONFALCONE 42',ubic);
       xml=rf(xml,'Non specificata',periodo||'Non specificata');
-      xml=rf(xml,'Napoli, li  11 marzo 2026','Napoli, li  '+dataN);
       xml=rf(xml,'A.C. FERRARA 3015',ags);
       if(tpl==='favp'){
         if(pres) xml=rf(xml,'PRESCRIZIONI_PLACEHOLDER',pres);
@@ -398,7 +393,6 @@ async function genera(){
       xml=rf(xml,'VIA MONFALCONE 42',ubic);
       xml=rf(xml,'Non specificata',periodo||'Non specificata');
       xml=rf(xml,'MOTIVAZIONE_PLACEHOLDER',mot);
-      xml=rf(xml,'Napoli, li  11 marzo 2026','Napoli, li  '+dataN);
       xml=rf(xml,'A.C. FERRARA 3015',ags);
     }
 
@@ -407,7 +401,7 @@ async function genera(){
     var _reviewItems=letteraOn?[]:[{zip:zip,filename:(_nomeFile||'relazione')+'.docx'}];
 
     if(letteraOn){
-      var pgI=document.getElementById('pgI').value.trim(); pgI=pgI.replace(/^PG\/\d{4}\//i,'');
+      var pgI=document.getElementById('pgI').value.trim();
       var dataIEl=document.getElementById('dataI');
       var dataI=(dataIEl&&dataIEl.value.trim())?dataIEl.value.trim():dataR;
       var dA=document.getElementById('destA'); var dU=document.getElementById('destU');
@@ -420,16 +414,16 @@ async function genera(){
       var est=document.getElementById('estensore');
       var zipL=await JSZip.loadAsync(B64L,{base64:true});
       var xmlL=await zipL.file('word/document.xml').async('string');
-      xmlL=rf(xmlL,'PG/2026/375181',pg);
-      xmlL=xmlL.split('<w:t>   del   28/03/26</w:t>').join('<w:t>   del   '+xe(dataI)+'</w:t>');
-      xmlL=xmlL.split('<w:t xml:space="preserve">   del   28/03/26</w:t>').join('<w:t xml:space="preserve">   del   '+xe(dataI)+'</w:t>');
-      xmlL=rf(xmlL,'PG/2026/301627',pgI?'PG/'+protocolYear()+'/'+pgI:pratica);
-      xmlL=rf(xmlL,'c_f839/Comune_di_Napoli 1176287/17-12-2025',pratica);
-      xmlL=rf(xmlL,'Trasmissione atti — CONTROLLO POSTEGGIO MERCATO CARAMANICO','Trasmissione atti — '+(pc?'PARERE PASSO CARRABILE - ':'PARERE OCCUPAZIONI SUOLO PUBBLICO - ')+rich);
-      xmlL=rf(xmlL,'Riscontro accertamento','Trasmissione parere');
-      xmlL=rf(xmlL,'CRISTIANO VINCENZO',rich); xmlL=rf(xmlL,'POSTEGGIO 269 - INT MERCATO',ubic);
-      xmlL=rf(xmlL,'Si trasmette quanto accertato in merito all’oggetto da ASS BATTAGLIA 651S.','Si trasmette quanto accertato in merito all’oggetto da '+xe(ags)+'.');
-      xmlL=rf(xmlL,'Napoli, li  28/03/26','Napoli, li  '+dataI);
+      // Riferimenti, oggetto, corpo e chiusura: assets/lettera.js, uguale per tutti i moduli.
+      var L=window.ADMIN3_LETTERA, richiesta=L.protocollo(pgI,document.getElementById('dataPgI').value);
+      var tipoParere=pc?'Parere passo carrabile':'Parere occupazione suolo pubblico';
+      xmlL=L.componi(xmlL,{
+        pg:pg, data:dataI,
+        riferimenti:[['Rif. Vs. nota: ',richiesta],['Pratica: ',pratica]],
+        oggetto:(richiesta?'Riscontro Vs. nota '+richiesta+' – ':'')+tipoParere+' – Pratica '+pratica+' – '+rich,
+        corpo:L.corpo('il parere redatto',agenti),
+        dati:[['Richiedente: ',rich],['Ubicazione: ',ubic]]
+      });
       xmlL=rf(xmlL,'Il Responsabile di Reparto',fq.options[fq.selectedIndex].text);
       xmlL=rf(xmlL,'S.Ten. Alessandro Autore',fn.options[fn.selectedIndex].text);
       if(est) xmlL=rf(xmlL,'Estensore: Battaglia','Estensore: '+est.options[est.selectedIndex].value);
@@ -464,7 +458,7 @@ async function genera(){
 }
 
 // ===== Migliorie operative v2.1 =====
-var APP_VERSION='3.5 - scheda passi carrabili';
+var APP_VERSION='3.6 - lettera di trasmissione rivista';
 var MAX_FILE_MB=12;
 function pgYearOf(raw){var m=String(raw||'').match(/^\s*PG\/(\d{4})\//i);return m?m[1]:protocolYear();}
 function protocolYear(){var e=document.getElementById('annoProt');return e&&/^\d{4}$/.test(e.value)?e.value:String(new Date().getFullYear());}
@@ -472,7 +466,7 @@ function formatDateExt(d){var m=['gennaio','febbraio','marzo','aprile','maggio',
 function initOperationalEnhancements(){
   var sub=document.querySelector('.hdr>div:last-child');if(sub&&!sub.querySelector('.ver')){var v=document.createElement('div');v.className='ver';v.textContent='Versione '+APP_VERSION;sub.appendChild(v);}
   var pg=document.getElementById('pgR');if(pg&&!document.getElementById('annoProt')){var f=pg.closest('.f');if(f){var y=document.createElement('input');y.id='annoProt';y.inputMode='numeric';y.maxLength=4;y.value=String(new Date().getFullYear());y.placeholder='Anno protocollo';y.style.marginTop='6px';f.appendChild(y);}}
-  ['dataR','dataAcc'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.value){var n=new Date();e.value=String(n.getDate()).padStart(2,'0')+'/'+String(n.getMonth()+1).padStart(2,'0')+'/'+String(n.getFullYear()).slice(-2);}});
+  ['dataR','dataAcc'].forEach(function(id){var e=document.getElementById(id);if(e&&!e.value){var n=new Date();e.value=String(n.getDate()).padStart(2,'0')+'.'+String(n.getMonth()+1).padStart(2,'0')+'.'+n.getFullYear();}});
   var o=document.getElementById('ora');if(o&&!o.value){var n=new Date();o.value=String(n.getHours()).padStart(2,'0')+'.'+String(n.getMinutes()).padStart(2,'0');}
   ['dataNap','dataN'].forEach(function(id){var e=document.getElementById(id);if(e)e.value=formatDateExt(new Date());});
   var form=document.getElementById('form');if(form&&!document.getElementById('draftTools')){var t=document.createElement('div');t.id='draftTools';t.className='toolbar';t.innerHTML='<button type="button" class="bsmall" onclick="saveDraft(true)">Salva bozza</button><button type="button" class="bsmall" onclick="loadDraft(true)">Riprendi bozza</button><button type="button" class="bsmall" onclick="showPreview()">Anteprima</button><button type="button" class="bsmall" onclick="exportRegistryCSV()">Esporta registro CSV</button><button type="button" class="bsmall" onclick="clearDraft()">Cancella bozza</button>';form.insertBefore(t,form.firstChild);}
@@ -559,7 +553,7 @@ function _styleParaByText(xml,text,opt){
     // rivendicavano anche lui e lo ricentravano, annullando l'allineamento a
     // sinistra impostato poco prima. Quel paragrafo appartiene alla sua regola
     // e a nessun'altra.
-    if(text!=='Trasmissione atti'&&piano.indexOf('Trasmissione atti')>=0)return p;
+    if(text!=='Trasmissione atti'&&(piano.indexOf('Trasmissione atti')>=0||p.indexOf('ADMIN3_oggetto')>=0))return p;
     return _styleParagraph(p,opt);
   });
 }
@@ -630,10 +624,6 @@ function polishDocumentXml(xml,kind){
   xml=_removeEmptyAndUnboxHeadingTables(xml);
   xml=_moveOutcomeHeadingAfterWriters(xml);
   if(kind==='pareri_edili'){
-    // Nei pareri edilizi il riquadro riferimenti deve mostrare solo la pratica ID.
-    xml=_removeParagraphContaining(xml,'Rif. PG:');
-    xml=_replaceVisibleText(xml,'Rif. Prot. SUAP:','Rif. Pratica ID:');
-    xml=_replaceVisibleText(xml,'Rif. Prot. SUAP','Rif. Pratica ID');
     xml=_replaceVisibleText(xml,'PARERE VIABILISTICO','PARERE OCCUPAZIONI SUOLO PUBBLICO');
     xml=_replaceVisibleText(xml,'Parere viabilistico','Parere occupazioni suolo pubblico');
     // Mantiene l'allineamento originale del corpo: solo il titolo/oggetto della trasmissione viene forzato a sinistra.
@@ -659,7 +649,8 @@ function polishDocumentXml(xml,kind){
     xml=_styleParaByText(xml,'IRREGOLARIT',{size:23,bold:true,before:80,after:70,keep:true});
     xml=_styleParaByText(xml,'PROVVEDIMENT',{size:23,bold:true,before:80,after:70,keep:true});
   }
-  return xml;
+  // Data in calce e formula sotto le firme: uguali in tutti i Word (assets/lettera.js).
+  return window.ADMIN3_LETTERA.rifinisci(xml);
 }
 async function polishDocxStyles(zip){
   var f=zip.file('word/styles.xml');if(!f)return;
