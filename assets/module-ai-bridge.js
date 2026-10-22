@@ -256,6 +256,13 @@
       count += put("richiedente", fields.richiedente);
       count += put("ubicazione", fields.ubicazione);
       count += put("periodo", fields.periodo);
+      // PG e data della richiesta a cui risponde la lettera di trasmissione.
+      const praticaEstratta = extraction && extraction.practice && typeof extraction.practice === "object" ? extraction.practice : {};
+      const protocolloRichiesta = String(praticaEstratta.protocol || "").match(/PG\s*\/\s*\d{4}\s*\/\s*\d+/i);
+      if (protocolloRichiesta) {
+        count += put("pgI", protocolloRichiesta[0].replace(/\s+/g, ""));
+        count += put("dataPgI", normalizeDate(praticaEstratta.date));
+      }
       if (fields.parere === "sfavorevole" && typeof window.setTpl === "function") {
         window.setTpl("sfav");
         count += put("motivazione", fields.motivazione);
@@ -271,6 +278,8 @@
       count += put("ogg", fields.oggetto);
       count += put("via", fields.via);
       count += put("mitt", fields.mittente);
+      const praticaEsposto = extraction && extraction.practice && typeof extraction.practice === "object" ? extraction.practice : {};
+      count += put("dataE", normalizeDate(praticaEsposto.date));
     } else if (current === "sorvegliabilita") {
       count += put("pgRif", fields.pgRif);
       count += put("dataRif", normalizeDate(fields.dataRif));
@@ -518,8 +527,8 @@
     window.leggiPDF = async function (file) {
       notify("L", "Analisi protetta del PDF in corso...");
       try {
-        const fields = await extract(await prepareDocument(file));
-        const count = applyExtractionFields(fields);
+        const result = await callDashboardAgent("extractor", { document: await prepareDocument(file) });
+        const count = applyExtractionFields((result && result.fields) || {}, result);
         schedulePracticeUpdate();
         notify("O", count ? "Estrazione completata — " + count + " campi rilevati" : "Nessun campo certo rilevato — compila manualmente");
         openForm();
